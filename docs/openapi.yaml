@@ -1,0 +1,505 @@
+openapi: 3.0.3
+info:
+  title: CheChe API
+  version: 1.0.0
+  description: 공공 체육시설 관리자 및 안전점검 API
+servers:
+  - url: http://localhost:8080
+    description: Local Gateway
+tags:
+  - name: Auth
+  - name: Admins
+  - name: Facilities
+  - name: Inspections
+paths:
+  /auth/admin/register:
+    post:
+      tags: [Auth]
+      summary: 관리자 회원가입
+      operationId: registerAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CredentialsRequest'}
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RegisterResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /auth/admin/login:
+    post:
+      tags: [Auth]
+      summary: 관리자 로그인
+      operationId: loginAdmin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CredentialsRequest'}
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminLoginResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+  /auth/user/login:
+    post:
+      tags: [Auth]
+      summary: 사용자 로그인
+      description: 인증과 JWT 발급만 수행하며 사용자 기능은 제공하지 않습니다.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CredentialsRequest'}
+      responses:
+        '200':
+          description: 로그인 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/UserLoginResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/admins/me:
+    get:
+      tags: [Admins]
+      summary: 내 관리자 프로필
+      operationId: getMyAdminProfile
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/admins/me/region:
+    put:
+      tags: [Admins]
+      summary: 최초 담당 지역 설정
+      operationId: setupMyRegion
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegionSetupRequest'}
+      responses:
+        '200':
+          description: 설정 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/admins:
+    get:
+      tags: [Admins]
+      summary: 관리자 전체 목록
+      description: 슈퍼관리자 전용
+      operationId: listAdmins
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/AdminResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/admins/{id}/authority:
+    patch:
+      tags: [Admins]
+      summary: 관리자 권한 및 지역 변경
+      description: 슈퍼관리자 전용
+      operationId: updateAdminAuthority
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminAuthorityRequest'}
+      responses:
+        '200':
+          description: 변경 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/facilities:
+    get:
+      tags: [Facilities]
+      summary: 권한 범위 시설 목록
+      operationId: listFacilities
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/FacilityResponse'}
+        '428': {$ref: '#/components/responses/SetupRequired'}
+    post:
+      tags: [Facilities]
+      summary: 체육시설 등록
+      operationId: createFacility
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FacilityRequest'}
+      responses:
+        '201':
+          description: 등록 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FacilityResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/facilities/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/Id'}
+    get:
+      tags: [Facilities]
+      summary: 체육시설 상세
+      operationId: getFacility
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FacilityResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [Facilities]
+      summary: 체육시설 수정
+      operationId: updateFacility
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FacilityRequest'}
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FacilityResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/inspections:
+    get:
+      tags: [Inspections]
+      summary: 권한 범위 점검 목록
+      operationId: listInspections
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/InspectionResponse'}
+    post:
+      tags: [Inspections]
+      summary: 사진 안전점검 접수
+      operationId: createInspection
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [facilityId, facilityName, facilityRegionCode, facilityRegionName, locationDescription, photo]
+              properties:
+                facilityId: {type: integer, format: int64}
+                facilityName: {type: string}
+                facilityRegionCode: {type: string}
+                facilityRegionName: {type: string}
+                locationDescription: {type: string}
+                note: {type: string}
+                suspectedDefect: {type: string}
+                photo: {type: string, format: binary}
+      responses:
+        '201':
+          description: 점검 생성 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InspectionResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/inspections/facilities/{facilityId}/history:
+    get:
+      tags: [Inspections]
+      summary: 시설별 안전점검 이력
+      operationId: getFacilityInspectionHistory
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: facilityId
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/InspectionResponse'}
+  /api/inspections/open:
+    get:
+      tags: [Inspections]
+      summary: 미조치 점검 목록
+      operationId: listOpenInspections
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/InspectionResponse'}
+  /api/inspections/dashboard:
+    get:
+      tags: [Inspections]
+      summary: 점검 현황 집계
+      operationId: getInspectionDashboard
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardResponse'}
+  /api/inspections/{id}/action:
+    patch:
+      tags: [Inspections]
+      summary: 점검 조치 상태 변경
+      operationId: updateInspectionAction
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ActionUpdateRequest'}
+      responses:
+        '200':
+          description: 변경 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InspectionResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/inspections/{id}/report:
+    get:
+      tags: [Inspections]
+      summary: 안전점검 보고서 다운로드
+      operationId: downloadInspectionReport
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      responses:
+        '200':
+          description: UTF-8 텍스트 보고서
+          content:
+            text/plain:
+              schema: {type: string}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/inspections/public/facilities/{facilityId}/status:
+    get:
+      tags: [Inspections]
+      summary: 이용자 공개용 시설 조치 현황
+      operationId: getPublicFacilityStatus
+      parameters:
+        - name: facilityId
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      responses:
+        '200':
+          description: 공개 가능한 점검 상태
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PublicInspectionStatusResponse'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+  responses:
+    BadRequest: {description: 잘못된 입력값}
+    Unauthorized: {description: 토큰 없음, 만료 또는 서명 오류}
+    Forbidden: {description: 계정 유형, 상태, 역할 또는 지역 권한 부족}
+    NotFound: {description: 대상을 찾을 수 없음}
+    Conflict: {description: 중복 또는 이미 완료된 상태}
+    SetupRequired: {description: 최초 담당 지역 설정 필요}
+    Unavailable: {description: 내부 관리자 서비스 연결 실패}
+  schemas:
+    CredentialsRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: {type: string, minLength: 4, maxLength: 50, pattern: '^[a-zA-Z0-9._-]+$', example: seoul-admin}
+        password: {type: string, format: password, minLength: 8, maxLength: 72, example: password123}
+    RegisterResponse:
+      type: object
+      properties:
+        userId: {type: integer, format: int64}
+        username: {type: string}
+        createdAt: {type: string, format: date-time}
+    AdminLoginResponse:
+      type: object
+      properties:
+        userId: {type: integer, format: int64}
+        username: {type: string}
+        tokenType: {type: string, enum: [Bearer]}
+        accessToken: {type: string}
+        expiresInSeconds: {type: integer, format: int64}
+        role: {$ref: '#/components/schemas/AdminRole'}
+        regionCode: {type: string, nullable: true}
+        regionName: {type: string, nullable: true}
+        initialSetupRequired: {type: boolean}
+    UserLoginResponse:
+      type: object
+      properties:
+        userId: {type: integer, format: int64}
+        username: {type: string}
+        accountType: {type: string, enum: [USER]}
+        tokenType: {type: string, enum: [Bearer]}
+        accessToken: {type: string}
+        expiresInSeconds: {type: integer, format: int64}
+        message: {type: string}
+    AdminRole: {type: string, enum: [REGIONAL_ADMIN, SUPER_USER]}
+    AdminStatus: {type: string, enum: [ACTIVE, SUSPENDED]}
+    FacilityStatus: {type: string, enum: [OPERATING, UNDER_INSPECTION, CLOSED]}
+    DefectType: {type: string, enum: [CRACK, CORROSION, DEFORMATION, SURFACE_DAMAGE, WATER_LEAK, OTHER]}
+    Severity: {type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL]}
+    ActionStatus: {type: string, enum: [REPORTED, REVIEWING, ACTION_SCHEDULED, RESOLVED]}
+    RegionSetupRequest:
+      type: object
+      required: [regionCode, regionName]
+      properties:
+        regionCode: {type: string, pattern: '^[0-9]{2,10}$', example: '11680'}
+        regionName: {type: string, example: 서울특별시 강남구}
+    AdminAuthorityRequest:
+      type: object
+      required: [role, status]
+      properties:
+        role: {$ref: '#/components/schemas/AdminRole'}
+        status: {$ref: '#/components/schemas/AdminStatus'}
+        regionCode: {type: string, nullable: true}
+        regionName: {type: string, nullable: true}
+    AdminResponse:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        userId: {type: integer, format: int64}
+        name: {type: string}
+        email: {type: string, nullable: true}
+        role: {$ref: '#/components/schemas/AdminRole'}
+        status: {$ref: '#/components/schemas/AdminStatus'}
+        regionCode: {type: string, nullable: true}
+        regionName: {type: string, nullable: true}
+        initialSetupRequired: {type: boolean}
+        createdAt: {type: string, format: date-time, nullable: true}
+    FacilityRequest:
+      type: object
+      required: [name, type, regionCode, regionName, address]
+      properties:
+        name: {type: string}
+        type: {type: string}
+        regionCode: {type: string}
+        regionName: {type: string}
+        address: {type: string}
+        phone: {type: string, nullable: true}
+        status: {$ref: '#/components/schemas/FacilityStatus'}
+        publicNotice: {type: string, nullable: true}
+    FacilityResponse:
+      allOf:
+        - {$ref: '#/components/schemas/FacilityRequest'}
+        - type: object
+          properties:
+            id: {type: integer, format: int64}
+            managerUserId: {type: integer, format: int64}
+            updatedAt: {type: string, format: date-time}
+    InspectionResponse:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        regionCode: {type: string}
+        regionName: {type: string}
+        reporterUserId: {type: integer, format: int64}
+        photoUrl: {type: string}
+        locationDescription: {type: string}
+        note: {type: string, nullable: true}
+        defectType: {$ref: '#/components/schemas/DefectType'}
+        severity: {$ref: '#/components/schemas/Severity'}
+        confidence: {type: number, format: double, minimum: 0, maximum: 1}
+        checklist: {type: array, items: {type: string}}
+        similarCases: {type: array, items: {type: string}}
+        reportSummary: {type: string}
+        actionStatus: {$ref: '#/components/schemas/ActionStatus'}
+        actionNote: {type: string, nullable: true}
+        resolvedAt: {type: string, format: date-time, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    PublicInspectionStatusResponse:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        locationDescription: {type: string}
+        defectType: {type: string}
+        severity: {type: string}
+        actionStatus: {$ref: '#/components/schemas/ActionStatus'}
+        publicActionSummary: {type: string}
+        createdAt: {type: string, format: date-time}
+        resolvedAt: {type: string, format: date-time, nullable: true}
+    ActionUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status: {$ref: '#/components/schemas/ActionStatus'}
+        actionNote: {type: string, nullable: true}
+    DashboardResponse:
+      type: object
+      properties:
+        totalInspections: {type: integer, format: int64}
+        unresolvedInspections: {type: integer, format: int64}
+        resolvedInspections: {type: integer, format: int64}

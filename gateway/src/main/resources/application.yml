@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cheche-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: login-service
+          uri: ${LOGIN_SERVICE_URI:http://localhost:8081}
+          predicates:
+            - Path=/auth/**
+        - id: admin-service
+          uri: ${ADMIN_SERVICE_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/admins/**
+        - id: facility-service
+          uri: ${FACILITY_SERVICE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/facilities/**
+        - id: inspection-service
+          uri: ${INSPECTION_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/inspections/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
+jwt:
+  secret: ${JWT_SECRET:cheche-development-secret-key-change-me-2026}
+  issuer: cheche-login-service
+
+services:
+  admin:
+    base-url: ${ADMIN_SERVICE_URI:http://localhost:8082}

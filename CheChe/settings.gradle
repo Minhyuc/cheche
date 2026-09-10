@@ -1,0 +1,5 @@
+rootProject.name = 'CheChe'
+include 'admin-service'
+include 'login-service'
+include 'facility-service'
+include 'inspection-service'

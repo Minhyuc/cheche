@@ -1,0 +1,25 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: login-service
+  datasource:
+    url: ${LOGIN_DB_URL:jdbc:mysql://localhost:3306/cheche_login?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+jwt:
+  secret: ${JWT_SECRET:cheche-development-secret-key-change-me-2026}
+  expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+  issuer: cheche-login-service
+
+services:
+  admin:
+    base-url: ${ADMIN_SERVICE_URI:http://localhost:8082}
+
+management.endpoints.web.exposure.include: health,info

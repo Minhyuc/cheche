@@ -16,6 +16,11 @@ CheChe/
 
 Next-Me와 마찬가지로 Spring Boot/Gradle 기반이며 Gateway와 서비스별 DB를 분리합니다.
 
+## API 문서
+
+- [프론트엔드 연동 가이드](docs/FRONTEND_API.md)
+- [OpenAPI 3.0 명세](docs/openapi.yaml)
+
 ## 로그인과 JWT
 
 Gateway의 루트 주소에는 `사용자 로그인`과 `관리자 로그인` 탭을 분리한 화면이 제공됩니다.
@@ -57,7 +62,7 @@ Gateway는 클라이언트가 임의로 보낸 `X-User-*` 헤더를 항상 제�
 MySQL에서 `cheche_login`, `cheche_admin`, `cheche_facility`, `cheche_inspection` 데이터베이스를 만든 뒤 `.env.example`을 `.env`로 복사하여 값을 입력합니다. `.env`는 바깥 프로젝트 폴더 또는 안쪽 `CheChe/` 멀티모듈 폴더에 둘 수 있습니다. 각 서비스와 Gateway는 IntelliJ 및 Gradle의 서로 다른 실행 디렉터리에서도 같은 `.env`를 자동으로 찾습니다. 운영체제 환경변수가 설정되어 있으면 `.env`보다 우선합니다.
 
 ```bash
-cp .env.example .env
+cp CheChe/.env.example CheChe/.env
 
 # .env 파일에 MYSQL_PASSWORD, JWT_SECRET 등을 입력한 뒤 실행
 cd CheChe

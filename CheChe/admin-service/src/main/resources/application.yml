@@ -1,0 +1,22 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: admin-service
+  datasource:
+    url: ${ADMIN_DB_URL:jdbc:mysql://localhost:3306/cheche_admin?serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+management.endpoints.web.exposure.include: health,info
+
+cheche:
+  bootstrap-super-user:
+    id: ${CHECHE_SUPER_USER_ID:}
+    name: ${CHECHE_SUPER_USER_NAME:CheChe Super User}
+    email: ${CHECHE_SUPER_USER_EMAIL:superuser@cheche.local}
