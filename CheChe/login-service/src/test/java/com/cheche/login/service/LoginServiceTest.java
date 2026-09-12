@@ -52,6 +52,24 @@ class LoginServiceTest {
 
         assertEquals("USER", response.accountType());
         assertEquals("user.jwt", response.accessToken());
+        assertTrue(response.initialSetupRequired());
         verifyNoInteractions(adminClient);
+    }
+
+    @Test
+    void userRegistrationCreatesUserAccount() {
+        when(repository.existsByUsername("new-user")).thenReturn(false);
+        when(encoder.encode("password123")).thenReturn("encoded");
+        when(repository.save(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 30L);
+            ReflectionTestUtils.setField(saved, "createdAt", java.time.LocalDateTime.now());
+            return saved;
+        });
+
+        RegisterResponse response = service.registerUser(new CredentialsRequest("new-user", "password123"));
+
+        assertEquals(30L, response.userId());
+        verify(repository).save(argThat(user -> user.getAccountType() == AccountType.USER));
     }
 }

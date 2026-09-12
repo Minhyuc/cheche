@@ -14,7 +14,67 @@
 
 `POST /auth/user/login`
 
-인증과 JWT 발급만 수행합니다. 사용자 토큰으로 관리자 API를 호출하면 `403 Forbidden`이 반환됩니다.
+사용자 회원가입은 `POST /auth/user/register`, 로그인은 `POST /auth/user/login`을 사용합니다.
+로그인 응답의 `initialSetupRequired`가 `true`이면 지역 설정 화면으로 이동합니다.
+
+```json
+{
+  "userId": 20,
+  "username": "sports-user",
+  "accountType": "USER",
+  "tokenType": "Bearer",
+  "accessToken": "eyJ...",
+  "expiresInSeconds": 3600,
+  "regionCode": null,
+  "regionName": null,
+  "initialSetupRequired": true,
+  "message": "지역 설정이 필요합니다."
+}
+```
+
+### 사용자 지역 설정
+
+- `GET /api/users/regions`: 선택 가능한 서울 25개 자치구
+- `GET /api/users/me`: 내 프로필
+- `PUT /api/users/me/region`: 내 지역 설정·변경
+
+```json
+{ "regionCode": "11680" }
+```
+
+지역 설정 전 `/api/user/**`를 호출하면 `428 Precondition Required`가 반환됩니다.
+지역 설정 후 Gateway가 `X-User-Region`을 생성하므로 프론트에서 지역 헤더를 전송하지 않습니다.
+
+### 사용자 시설 탐색
+
+- `GET /api/user/facilities/home`: 설정 지역의 추천 시설
+- `POST /api/user/facilities/search`: 설정 지역 자연어 검색
+- `GET /api/user/facilities/{id}`: 시설 상세
+- `GET /api/user/facilities/{id}/usage-guide`: 예약·이용 안내
+
+검색 요청:
+
+```json
+{ "query": "강남에서 수영할 수 있는 곳" }
+```
+
+### 시설 개선 요청
+
+`POST /api/user/reports`는 `multipart/form-data` 요청입니다.
+
+| 필드 | 필수 | 설명 |
+|---|---:|---|
+| `facilityId` | O | 이용한 시설 ID |
+| `category` | O | `DETERIORATION`, `IMPROVEMENT`, `REPAIR`, `OTHER` |
+| `locationDescription` | O | 시설 내 발견 위치, 최대 240자 |
+| `comment` | O | 개선·수리 요청 내용, 최대 2,000자 |
+| `photo` | O | 이미지 파일, 최대 15MB |
+
+- `GET /api/user/reports`: 내가 작성한 요청 목록
+- `GET /api/user/reports/{id}`: 내가 작성한 요청 상세
+
+처리 상태는 `RECEIVED`, `REVIEWING`, `REPAIR_SCHEDULED`, `COMPLETED`, `REJECTED`입니다.
+사용자는 본인이 작성한 요청만 볼 수 있습니다.
 
 ### 관리자 로그인
 

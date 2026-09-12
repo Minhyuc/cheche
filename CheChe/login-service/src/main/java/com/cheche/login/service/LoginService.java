@@ -29,11 +29,20 @@ public class LoginService {
 
     @Transactional
     public RegisterResponse register(CredentialsRequest request) {
+        return register(request, AccountType.ADMIN);
+    }
+
+    @Transactional
+    public RegisterResponse registerUser(CredentialsRequest request) {
+        return register(request, AccountType.USER);
+    }
+
+    private RegisterResponse register(CredentialsRequest request, AccountType accountType) {
         String username = normalize(request.username());
         if (repository.existsByUsername(username)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다.");
         }
-        User saved = repository.save(new User(username, passwordEncoder.encode(request.password()), AccountType.ADMIN));
+        User saved = repository.save(new User(username, passwordEncoder.encode(request.password()), accountType));
         return new RegisterResponse(saved.getId(), saved.getUsername(), saved.getCreatedAt());
     }
 
@@ -57,7 +66,8 @@ public class LoginService {
         String token = jwtService.issue(user);
         return new UserLoginResponse(user.getId(), user.getUsername(), AccountType.USER.name(),
                 "Bearer", token, jwtService.getExpirationSeconds(),
-                "사용자 로그인에 성공했습니다. 사용자 기능은 아직 제공되지 않습니다.");
+                user.getRegionCode(), user.getRegionName(), user.getRegionCode() == null,
+                user.getRegionCode() == null ? "지역 설정이 필요합니다." : "사용자 로그인에 성공했습니다.");
     }
 
     private User authenticate(CredentialsRequest request, AccountType expectedType) {

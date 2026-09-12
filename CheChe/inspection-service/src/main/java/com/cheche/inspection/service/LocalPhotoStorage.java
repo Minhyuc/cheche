@@ -21,7 +21,7 @@ public class LocalPhotoStorage implements PhotoStorage {
     @Override
     public String store(MultipartFile photo) {
         if (photo.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "점검 사진이 필요합니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "사진이 필요합니다.");
         }
         String contentType = photo.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {

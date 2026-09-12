@@ -22,6 +22,12 @@ public class User {
     @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'ADMIN'")
     private AccountType accountType;
 
+    @Column(length = 20)
+    private String regionCode;
+
+    @Column(length = 80)
+    private String regionName;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -46,5 +52,12 @@ public class User {
     public String getUsername() { return username; }
     public String getPasswordHash() { return passwordHash; }
     public AccountType getAccountType() { return accountType; }
+    public String getRegionCode() { return regionCode; }
+    public String getRegionName() { return regionName; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void updateRegion(String regionCode, String regionName) {
+        this.regionCode = regionCode;
+        this.regionName = regionName;
+    }
 }

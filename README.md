@@ -25,7 +25,7 @@ Next-Me와 마찬가지로 Spring Boot/Gradle 기반이며 Gateway와 서비스�
 
 Gateway의 루트 주소에는 `사용자 로그인`과 `관리자 로그인` 탭을 분리한 화면이 제공됩니다.
 
-- 사용자 로그인: `USER` 계정의 자격 증명 확인과 JWT 발급까지만 수행합니다. 이후 사용자 기능은 연결하지 않습니다.
+- 사용자: 회원가입·로그인, 서울 자치구 설정, 지역 시설 탐색, 사진 기반 시설 개선 요청을 지원합니다.
 - 관리자 로그인: `ADMIN` 계정만 허용하며 admin-service 동기화, 최초 지역 설정, 시설·점검 관리로 이어집니다.
 - 관리자 회원가입: 아이디와 비밀번호만 받습니다. 사용자 계정 회원가입은 구현하지 않았으며 기존 사용자 DB 이관 또는 별도 프로비저닝을 전제로 합니다.
 
@@ -46,6 +46,10 @@ Gateway는 클라이언트가 임의로 보낸 `X-User-*` 헤더를 항상 제�
 - `POST /auth/admin/register` 관리자 아이디·비밀번호 회원가입
 - `POST /auth/admin/login` 관리자 로그인, JWT 및 최초 설정 여부 반환
 - `POST /auth/user/login` 사용자 로그인 및 JWT 발급만 수행
+- `POST /auth/user/register` 사용자 회원가입
+- `GET/PUT /api/users/me` 사용자 프로필 조회·지역 설정
+- `GET/POST /api/user/facilities/**` 사용자 지역 시설 추천·검색·상세
+- `GET/POST /api/user/reports` 사진·코멘트 기반 시설 개선 요청
 - `POST /api/admins/sync` 로그인 서비스의 관리자 동기화
 - `PUT /api/admins/me/region` 최초 지역 설정
 - `GET /api/admins/me` 내 관리자 프로필

@@ -33,4 +33,9 @@ public class LoginController {
     public ResponseEntity<UserLoginResponse> loginUser(@Valid @RequestBody CredentialsRequest request) {
         return ResponseEntity.ok(service.loginUser(request));
     }
+
+    @PostMapping("/user/register")
+    public ResponseEntity<RegisterResponse> registerUser(@Valid @RequestBody CredentialsRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.registerUser(request));
+    }
 }

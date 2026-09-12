@@ -26,18 +26,21 @@ public class AuthenticationBridgeFilter implements GlobalFilter, Ordered {
     private final SecretKey signingKey;
     private final String issuer;
     private final WebClient adminClient;
+    private final WebClient userClient;
 
     public AuthenticationBridgeFilter(
             WebClient.Builder builder,
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.issuer:cheche-login-service}") String issuer,
-            @Value("${services.admin.base-url:http://localhost:8082}") String adminBaseUrl) {
+            @Value("${services.admin.base-url:http://localhost:8082}") String adminBaseUrl,
+            @Value("${services.user.base-url:http://localhost:8081}") String userBaseUrl) {
         if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalArgumentException("JWT_SECRET은 32바이트 이상이어야 합니다.");
         }
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.issuer = issuer;
         this.adminClient = builder.baseUrl(adminBaseUrl).build();
+        this.userClient = builder.baseUrl(userBaseUrl).build();
     }
 
     @Override
@@ -61,10 +64,39 @@ public class AuthenticationBridgeFilter implements GlobalFilter, Ordered {
 
         Number userIdClaim = claims.get("userId", Number.class);
         if (userIdClaim == null) return reject(exchange, HttpStatus.UNAUTHORIZED);
-        if (!"ADMIN".equals(claims.get("accountType", String.class))) {
+        String accountType = claims.get("accountType", String.class);
+        String userId = String.valueOf(userIdClaim.longValue());
+
+        if (isUserProfilePath(path)) {
+            if (!"USER".equals(accountType)) return reject(exchange, HttpStatus.FORBIDDEN);
+            ServerWebExchange authenticatedUser = sanitized.mutate().request(request ->
+                    request.header(USER_ID, userId)).build();
+            return chain.filter(authenticatedUser);
+        }
+
+        if (isUserAppPath(path)) {
+            if (!"USER".equals(accountType)) return reject(exchange, HttpStatus.FORBIDDEN);
+            return userClient.get()
+                    .uri("/api/users/me")
+                    .header(USER_ID, userId)
+                    .retrieve()
+                    .bodyToMono(UserContext.class)
+                    .flatMap(context -> {
+                        if (context.initialSetupRequired() || context.regionCode() == null) {
+                            return reject(exchange, HttpStatus.PRECONDITION_REQUIRED);
+                        }
+                        ServerWebExchange authenticatedUser = sanitized.mutate().request(request -> {
+                            request.header(USER_ID, userId);
+                            request.header(USER_REGION, context.regionCode());
+                        }).build();
+                        return chain.filter(authenticatedUser);
+                    })
+                    .onErrorResume(error -> reject(exchange, HttpStatus.SERVICE_UNAVAILABLE));
+        }
+
+        if (!"ADMIN".equals(accountType)) {
             return reject(exchange, HttpStatus.FORBIDDEN);
         }
-        String userId = String.valueOf(userIdClaim.longValue());
 
         return adminClient.get()
                 .uri("/api/admins/me")
@@ -102,7 +134,16 @@ public class AuthenticationBridgeFilter implements GlobalFilter, Ordered {
                 || path.equals("/login.css")
                 || path.equals("/login.js")
                 || path.equals("/actuator/health")
+                || path.startsWith("/inspection-photos/")
                 || path.startsWith("/api/inspections/public/");
+    }
+
+    private boolean isUserProfilePath(String path) {
+        return path.startsWith("/api/users/");
+    }
+
+    private boolean isUserAppPath(String path) {
+        return path.startsWith("/api/user/");
     }
 
     private Mono<Void> reject(ServerWebExchange exchange, HttpStatus status) {
@@ -114,4 +155,5 @@ public class AuthenticationBridgeFilter implements GlobalFilter, Ordered {
     public int getOrder() { return Ordered.HIGHEST_PRECEDENCE; }
 
     private record AdminContext(String role, String status, String regionCode) {}
+    private record UserContext(String regionCode, boolean initialSetupRequired) {}
 }
