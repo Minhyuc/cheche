@@ -18,3 +18,7 @@ spring:
       max-request-size: 15MB
 
 management.endpoints.web.exposure.include: health,info
+
+services:
+  facility:
+    base-url: ${FACILITY_SERVICE_URI:http://localhost:8083}

@@ -7,5 +7,8 @@ public record UserLoginResponse(
         String tokenType,
         String accessToken,
         long expiresInSeconds,
+        String regionCode,
+        String regionName,
+        boolean initialSetupRequired,
         String message
 ) {}

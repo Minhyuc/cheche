@@ -11,6 +11,10 @@ spring:
           uri: ${LOGIN_SERVICE_URI:http://localhost:8081}
           predicates:
             - Path=/auth/**
+        - id: user-profile-service
+          uri: ${LOGIN_SERVICE_URI:http://localhost:8081}
+          predicates:
+            - Path=/api/users/**
         - id: admin-service
           uri: ${ADMIN_SERVICE_URI:http://localhost:8082}
           predicates:
@@ -19,10 +23,22 @@ spring:
           uri: ${FACILITY_SERVICE_URI:http://localhost:8083}
           predicates:
             - Path=/api/facilities/**
+        - id: user-facility-service
+          uri: ${FACILITY_SERVICE_URI:http://localhost:8083}
+          predicates:
+            - Path=/api/user/facilities/**
         - id: inspection-service
           uri: ${INSPECTION_SERVICE_URI:http://localhost:8084}
           predicates:
             - Path=/api/inspections/**
+        - id: user-report-service
+          uri: ${INSPECTION_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/api/user/reports/**
+        - id: inspection-photo-service
+          uri: ${INSPECTION_SERVICE_URI:http://localhost:8084}
+          predicates:
+            - Path=/inspection-photos/**
 
 management:
   endpoints:
@@ -37,3 +53,5 @@ jwt:
 services:
   admin:
     base-url: ${ADMIN_SERVICE_URI:http://localhost:8082}
+  user:
+    base-url: ${LOGIN_SERVICE_URI:http://localhost:8081}
