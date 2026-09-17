@@ -28,6 +28,11 @@ public class AdminController {
         return ResponseEntity.ok(service.getMe(userId));
     }
 
+    @GetMapping("/regions")
+    public ResponseEntity<List<RegionOptionResponse>> regions() {
+        return ResponseEntity.ok(service.regions());
+    }
+
     @PutMapping("/me/region")
     public ResponseEntity<AdminResponse> setupRegion(
             @RequestHeader("X-User-Id") Long userId,

@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 @Table(name = "facilities", indexes = {
         @Index(name = "idx_facilities_region_status", columnList = "regionCode,status"),
         @Index(name = "idx_facilities_region_type", columnList = "regionCode,type")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_facilities_source_external_id", columnNames = {"source", "externalId"})
 })
 public class Facility {
     @Id
@@ -40,6 +42,15 @@ public class Facility {
 
     @Column(length = 1000)
     private String publicNotice;
+
+    @Column(length = 40)
+    private String source;
+
+    @Column(length = 160)
+    private String externalId;
+
+    @Column(length = 500)
+    private String sourceUrl;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -76,6 +87,26 @@ public class Facility {
         this.publicNotice = publicNotice;
     }
 
+    public static Facility fromPublicData(String name, String type, String regionCode, String regionName,
+                                          String address, String phone, Long managerUserId,
+                                          FacilityStatus status, String source, String externalId, String sourceUrl) {
+        Facility facility = new Facility(name, type, regionCode, regionName, address, phone,
+                managerUserId, "국민체육진흥공단 전국체육시설 정보 연계");
+        facility.source = source;
+        facility.externalId = externalId;
+        facility.sourceUrl = sourceUrl;
+        facility.status = status;
+        return facility;
+    }
+
+    public void updatePublicData(String name, String type, String address, String phone, String sourceUrl) {
+        this.name = name;
+        this.type = type;
+        this.address = address;
+        this.phone = phone;
+        this.sourceUrl = sourceUrl;
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getType() { return type; }
@@ -86,5 +117,8 @@ public class Facility {
     public FacilityStatus getStatus() { return status; }
     public Long getManagerUserId() { return managerUserId; }
     public String getPublicNotice() { return publicNotice; }
+    public String getSource() { return source; }
+    public String getExternalId() { return externalId; }
+    public String getSourceUrl() { return sourceUrl; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

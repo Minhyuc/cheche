@@ -27,7 +27,7 @@ Gateway의 루트 주소에는 `사용자 로그인`과 `관리자 로그인` �
 
 - 사용자: 회원가입·로그인, 서울 자치구 설정, 지역 시설 탐색, 사진 기반 시설 개선 요청을 지원합니다.
 - 관리자 로그인: `ADMIN` 계정만 허용하며 admin-service 동기화, 최초 지역 설정, 시설·점검 관리로 이어집니다.
-- 관리자 회원가입: 아이디와 비밀번호만 받습니다. 사용자 계정 회원가입은 구현하지 않았으며 기존 사용자 DB 이관 또는 별도 프로비저닝을 전제로 합니다.
+- 관리자·사용자 회원가입: 각각 아이디와 비밀번호만 받으며 이메일 인증은 사용하지 않습니다.
 
 비밀번호는 BCrypt 해시로만 저장하며 평문을 저장하지 않습니다. 관리자 로그인에 성공하면 login-service가 admin-service를 동기화하고 JWT 액세스 토큰과 `initialSetupRequired`를 반환합니다.
 
@@ -55,6 +55,7 @@ Gateway는 클라이언트가 임의로 보낸 `X-User-*` 헤더를 항상 제�
 - `GET /api/admins/me` 내 관리자 프로필
 - `GET /api/admins` 슈퍼유저 전용 관리자 목록
 - `GET/POST /api/facilities` 권한 범위 내 시설 조회/등록
+- `POST /api/facilities/public-data/sync` 국민체육진흥공단 시설정보를 서울 지역 관리자 DB에 동기화
 - `POST /api/inspections` 사진 기반 점검 기록 생성
 - `PATCH /api/inspections/{id}/action` 조치 상태 갱신
 - `GET /api/inspections/facilities/{facilityId}/history` 시설 안전 이력
@@ -63,7 +64,7 @@ Gateway는 클라이언트가 임의로 보낸 `X-User-*` 헤더를 항상 제�
 
 ## 실행
 
-MySQL에서 `cheche_login`, `cheche_admin`, `cheche_facility`, `cheche_inspection` 데이터베이스를 만든 뒤 `.env.example`을 `.env`로 복사하여 값을 입력합니다. `.env`는 바깥 프로젝트 폴더 또는 안쪽 `CheChe/` 멀티모듈 폴더에 둘 수 있습니다. 각 서비스와 Gateway는 IntelliJ 및 Gradle의 서로 다른 실행 디렉터리에서도 같은 `.env`를 자동으로 찾습니다. 운영체제 환경변수가 설정되어 있으면 `.env`보다 우선합니다.
+MySQL에서 `cheche_login`, `cheche_admin`, `cheche_facility`, `cheche_inspection` 데이터베이스를 만든 뒤 `.env.example`을 `.env`로 복사하여 값을 입력합니다. 공공 시설 동기화를 사용하려면 공공데이터포털에서 `서울올림픽기념국민체육진흥공단_전국체육시설 정보` 활용 신청 후 발급받은 키를 `DATA_GO_KR_SERVICE_KEY`에 넣습니다. `.env`는 바깥 프로젝트 폴더 또는 안쪽 `CheChe/` 멀티모듈 폴더에 둘 수 있습니다. 각 서비스와 Gateway는 IntelliJ 및 Gradle의 서로 다른 실행 디렉터리에서도 같은 `.env`를 자동으로 찾습니다. 운영체제 환경변수가 설정되어 있으면 `.env`보다 우선합니다.
 
 ```bash
 cp CheChe/.env.example CheChe/.env

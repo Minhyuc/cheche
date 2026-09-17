@@ -3,7 +3,9 @@ package com.cheche.facility.controller;
 import com.cheche.facility.domain.AdminRole;
 import com.cheche.facility.dto.FacilityRequest;
 import com.cheche.facility.dto.FacilityResponse;
+import com.cheche.facility.dto.PublicFacilitySyncResponse;
 import com.cheche.facility.service.FacilityService;
+import com.cheche.facility.service.PublicFacilitySyncService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -14,8 +16,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/facilities")
 public class FacilityController {
     private final FacilityService service;
+    private final PublicFacilitySyncService publicFacilitySyncService;
 
-    public FacilityController(FacilityService service) { this.service = service; }
+    public FacilityController(FacilityService service, PublicFacilitySyncService publicFacilitySyncService) {
+        this.service = service;
+        this.publicFacilitySyncService = publicFacilitySyncService;
+    }
+
+    @PostMapping("/public-data/sync")
+    public ResponseEntity<PublicFacilitySyncResponse> syncPublicData(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-User-Role") AdminRole role,
+            @RequestHeader(value = "X-User-Region", required = false) String regionCode) {
+        return ResponseEntity.ok(publicFacilitySyncService.sync(userId, role, regionCode));
+    }
 
     @GetMapping
     public ResponseEntity<List<FacilityResponse>> list(

@@ -9,4 +9,6 @@ public interface FacilityRepository extends JpaRepository<Facility, Long> {
     List<Facility> findAllByRegionCodeOrderByNameAsc(String regionCode);
     List<Facility> findAllByStatusOrderByNameAsc(FacilityStatus status);
     List<Facility> findAllByStatusAndRegionCodeOrderByNameAsc(FacilityStatus status, String regionCode);
+    List<Facility> findAllBySourceAndRegionCode(String source, String regionCode);
+    List<Facility> findAllBySource(String source);
 }

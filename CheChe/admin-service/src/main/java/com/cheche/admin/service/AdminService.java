@@ -5,6 +5,7 @@ import com.cheche.admin.domain.Administrator;
 import com.cheche.admin.dto.*;
 import com.cheche.admin.repository.AdministratorRepository;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,13 @@ public class AdminService {
         return AdminResponse.from(findByUserId(userId));
     }
 
+    public List<RegionOptionResponse> regions() {
+        return SeoulDistricts.ALL.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .map(entry -> new RegionOptionResponse(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
     @Transactional
     public AdminResponse setupMyRegion(Long userId, RegionSetupRequest request) {
         Administrator admin = findByUserId(userId);
@@ -40,7 +48,7 @@ public class AdminService {
         if (admin.getRegionCode() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "담당 지역은 이미 설정되었습니다. 변경은 슈퍼유저에게 요청하세요.");
         }
-        admin.assignRegion(request.regionCode(), request.regionName());
+        admin.assignRegion(request.regionCode(), requireSeoulRegion(request.regionCode()));
         return AdminResponse.from(admin);
     }
 
@@ -59,8 +67,9 @@ public class AdminService {
         admin.changeStatus(request.status());
         if (request.role() == AdminRole.SUPER_USER) {
             admin.assignRegion(null, null);
-        } else if (request.regionCode() != null && request.regionName() != null) {
-            admin.assignRegion(request.regionCode(), request.regionName());
+        } else {
+            String regionCode = request.regionCode() != null ? request.regionCode() : admin.getRegionCode();
+            admin.assignRegion(regionCode, requireSeoulRegion(regionCode));
         }
         return AdminResponse.from(admin);
     }
@@ -74,5 +83,14 @@ public class AdminService {
         if (role != AdminRole.SUPER_USER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "슈퍼유저 권한이 필요합니다.");
         }
+    }
+
+    private String requireSeoulRegion(String regionCode) {
+        String regionName = SeoulDistricts.ALL.get(regionCode);
+        if (regionName == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "서울특별시 25개 자치구 코드만 설정할 수 있습니다.");
+        }
+        return regionName;
     }
 }

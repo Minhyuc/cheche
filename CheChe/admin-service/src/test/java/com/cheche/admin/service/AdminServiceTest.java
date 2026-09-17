@@ -11,6 +11,7 @@ import com.cheche.admin.dto.RegionSetupRequest;
 import com.cheche.admin.repository.AdministratorRepository;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 class AdminServiceTest {
     private final AdministratorRepository repository = mock(AdministratorRepository.class);
@@ -36,5 +37,15 @@ class AdminServiceTest {
 
         assertFalse(response.initialSetupRequired());
         assertEquals("11680", response.regionCode());
+        assertEquals("서울특별시 강남구", response.regionName());
+    }
+
+    @Test
+    void regionSetupRejectsOutsideSeoul() {
+        Administrator admin = new Administrator(1001L, "부산 관리자", "admin@example.com");
+        when(repository.findByUserId(1001L)).thenReturn(Optional.of(admin));
+
+        assertThrows(ResponseStatusException.class,
+                () -> service.setupMyRegion(1001L, new RegionSetupRequest("26110", "부산광역시 중구")));
     }
 }

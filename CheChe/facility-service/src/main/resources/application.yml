@@ -14,3 +14,9 @@ spring:
     open-in-view: false
 
 management.endpoints.web.exposure.include: health,info
+
+integrations:
+  kspo:
+    base-url: ${KSPO_FACILITY_API_URL:https://apis.data.go.kr/B551014/SRVC_API_SFMS_FACI/TODZ_API_SFMS_FACI}
+    api-key: ${DATA_GO_KR_SERVICE_KEY:}
+    page-size: ${KSPO_API_PAGE_SIZE:1000}

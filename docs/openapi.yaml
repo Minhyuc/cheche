@@ -8,6 +8,9 @@ servers:
     description: Local Gateway
 tags:
   - name: Auth
+  - name: Users
+  - name: User Facilities
+  - name: User Reports
   - name: Admins
   - name: Facilities
   - name: Inspections
@@ -68,6 +71,136 @@ paths:
               schema: {$ref: '#/components/schemas/UserLoginResponse'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /auth/user/register:
+    post:
+      tags: [Auth]
+      summary: 사용자 회원가입
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CredentialsRequest'}
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RegisterResponse'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: 내 사용자 프로필
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content: {application/json: {schema: {$ref: '#/components/schemas/UserProfileResponse'}}}
+  /api/users/me/region:
+    put:
+      tags: [Users]
+      summary: 사용자 지역 설정 또는 변경
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UserRegionRequest'}}}
+      responses:
+        '200':
+          description: 변경 성공
+          content: {application/json: {schema: {$ref: '#/components/schemas/UserProfileResponse'}}}
+  /api/users/regions:
+    get:
+      tags: [Users]
+      summary: 선택 가능한 서울 자치구
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/RegionOption'}}
+  /api/user/facilities/home:
+    get:
+      tags: [User Facilities]
+      summary: 내 지역 추천 시설
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: 조회 성공}
+        '428': {$ref: '#/components/responses/SetupRequired'}
+  /api/user/facilities/search:
+    post:
+      tags: [User Facilities]
+      summary: 자연어 시설 검색
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties: {query: {type: string, maxLength: 200}}
+      responses:
+        '200': {description: 검색 결과}
+  /api/user/facilities/{id}:
+    get:
+      tags: [User Facilities]
+      summary: 사용자용 시설 상세
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: 조회 성공}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/user/facilities/{id}/usage-guide:
+    get:
+      tags: [User Facilities]
+      summary: 시설 이용 안내
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: 조회 성공}
+  /api/user/reports:
+    get:
+      tags: [User Reports]
+      summary: 내가 작성한 시설 개선 요청
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/FacilityReportResponse'}}}}
+    post:
+      tags: [User Reports]
+      summary: 사진 기반 시설 개선 요청
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [facilityId, category, locationDescription, comment, photo]
+              properties:
+                facilityId: {type: integer, format: int64}
+                category: {type: string, enum: [DETERIORATION, IMPROVEMENT, REPAIR, OTHER]}
+                locationDescription: {type: string, maxLength: 240}
+                comment: {type: string, maxLength: 2000}
+                photo: {type: string, format: binary}
+      responses:
+        '201':
+          description: 접수 성공
+          content: {application/json: {schema: {$ref: '#/components/schemas/FacilityReportResponse'}}}
+  /api/user/reports/{id}:
+    get:
+      tags: [User Reports]
+      summary: 내가 작성한 시설 개선 요청 상세
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200':
+          description: 조회 성공
+          content: {application/json: {schema: {$ref: '#/components/schemas/FacilityReportResponse'}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/admins/me:
     get:
       tags: [Admins]
@@ -100,6 +233,20 @@ paths:
               schema: {$ref: '#/components/schemas/AdminResponse'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '409': {$ref: '#/components/responses/Conflict'}
+  /api/admins/regions:
+    get:
+      tags: [Admins]
+      summary: 관리자 지역 선택용 서울 25개 자치구
+      operationId: listAdminRegions
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/RegionOption'}
   /api/admins:
     get:
       tags: [Admins]
@@ -204,6 +351,21 @@ paths:
               schema: {$ref: '#/components/schemas/FacilityResponse'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+  /api/facilities/public-data/sync:
+    post:
+      tags: [Facilities]
+      summary: 국민체육진흥공단 시설정보 동기화
+      description: 지역 관리자는 담당 서울 자치구만, 슈퍼관리자는 서울 전체 공공체육시설을 생성 또는 갱신합니다.
+      operationId: syncKspoFacilities
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 동기화 완료
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PublicFacilitySyncResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/Unavailable'}
   /api/inspections:
     get:
       tags: [Inspections]
@@ -401,7 +563,27 @@ components:
         tokenType: {type: string, enum: [Bearer]}
         accessToken: {type: string}
         expiresInSeconds: {type: integer, format: int64}
+        regionCode: {type: string, nullable: true}
+        regionName: {type: string, nullable: true}
+        initialSetupRequired: {type: boolean}
         message: {type: string}
+    UserRegionRequest:
+      type: object
+      required: [regionCode]
+      properties: {regionCode: {type: string, pattern: '^11[0-9]{3}$', example: '11680'}}
+    RegionOption:
+      type: object
+      properties:
+        regionCode: {type: string, example: '11680'}
+        regionName: {type: string, example: 서울특별시 강남구}
+    UserProfileResponse:
+      type: object
+      properties:
+        userId: {type: integer, format: int64}
+        username: {type: string}
+        regionCode: {type: string, nullable: true}
+        regionName: {type: string, nullable: true}
+        initialSetupRequired: {type: boolean}
     AdminRole: {type: string, enum: [REGIONAL_ADMIN, SUPER_USER]}
     AdminStatus: {type: string, enum: [ACTIVE, SUSPENDED]}
     FacilityStatus: {type: string, enum: [OPERATING, UNDER_INSPECTION, CLOSED]}
@@ -454,7 +636,38 @@ components:
           properties:
             id: {type: integer, format: int64}
             managerUserId: {type: integer, format: int64}
+            source: {type: string, nullable: true, example: KSPO_NATIONAL_FACILITY}
+            externalId: {type: string, nullable: true}
+            sourceUrl: {type: string, format: uri, nullable: true}
             updatedAt: {type: string, format: date-time}
+    PublicFacilitySyncResponse:
+      type: object
+      properties:
+        provider: {type: string, example: 국민체육진흥공단}
+        regionCode: {type: string, example: '11680'}
+        regionName: {type: string, example: 서울특별시 강남구}
+        scannedCount: {type: integer}
+        matchedCount: {type: integer}
+        createdCount: {type: integer}
+        updatedCount: {type: integer}
+    FacilityReportResponse:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        regionCode: {type: string}
+        regionName: {type: string}
+        category: {type: string, enum: [DETERIORATION, IMPROVEMENT, REPAIR, OTHER]}
+        categoryLabel: {type: string}
+        locationDescription: {type: string}
+        comment: {type: string}
+        photoUrl: {type: string}
+        status: {type: string, enum: [RECEIVED, REVIEWING, REPAIR_SCHEDULED, COMPLETED, REJECTED]}
+        statusLabel: {type: string}
+        resolutionNote: {type: string, nullable: true}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
     InspectionResponse:
       type: object
       properties:
