@@ -126,6 +126,23 @@ export async function adminApi<T>(
 { "query": "강남에서 수영할 수 있는 곳" }
 ```
 
+시설 검색 결과는 CheChe DB와 서울 열린데이터광장의 `ListPublicReservationSport` 결과를 합쳐 반환합니다.
+공공 API 항목은 `source`가 `SEOUL_OPEN_API`이며 `externalId`, `phone`, `imageUrl`,
+`openingTime`, `closingTime`, `statusLabel`을 포함합니다. 동일 지역·시설명·종목 데이터는 한 건으로 합칩니다.
+
+전체 서울 데이터를 사용하려면 실행 환경에 `SEOUL_OPEN_API_KEY`를 설정합니다.
+키가 없을 때 사용하는 `sample` 키는 일부 테스트 데이터만 반환합니다. 공공 API 장애 시에는
+CheChe DB 결과만 반환하므로 사용자 검색 전체가 실패하지 않습니다.
+
+국민체육진흥공단의 `스포츠가치센터 운영시설 이용회차 정보`도 함께 조회합니다.
+KSPO 항목은 `source`가 `KSPO_OPEN_API`이며 시설별 회차 정보를 묶어 운영 시작·종료시간과
+회차 최대 수용인원을 제공합니다. 홈 응답의 `kspoFacilities`에서 공식 시설을 별도 표시하며,
+자연어 검색 결과에도 포함됩니다.
+
+공공데이터포털에서 해당 API 활용신청 후 발급된 **일반 인증키(Decoding)** 를
+`KSPO_OPEN_API_KEY`에 설정해야 실제 데이터가 표시됩니다. 키가 없거나 API 장애가 발생하면
+KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니다.
+
 ### 시설 개선 요청
 
 `POST /api/user/reports`는 `multipart/form-data` 요청입니다.
@@ -143,6 +160,29 @@ export async function adminApi<T>(
 
 처리 상태는 `RECEIVED`, `REVIEWING`, `REPAIR_SCHEDULED`, `COMPLETED`, `REJECTED`입니다.
 사용자는 본인이 작성한 요청만 볼 수 있습니다.
+
+### 사용자 시설 예약
+
+- `GET /api/user/reservations/availability?facilityId=1&date=2026-10-01`: 예약 가능한 정각 시간 조회
+- `POST /api/user/reservations`: 1시간 단위 예약 생성
+- `GET /api/user/reservations`: 내 예약 목록
+- `GET /api/user/reservations/{id}`: 내 예약 상세
+- `PATCH /api/user/reservations/{id}/cancel`: 시작 전 예약 취소
+
+예약 생성 요청:
+
+```json
+{
+  "facilityId": 1,
+  "reservationDate": "2026-10-01",
+  "startTime": "19:00:00",
+  "participantCount": 2
+}
+```
+
+예약은 운영 중인 CheChe 등록 시설에서만 가능하며, 사용자가 설정한 지역의 시설이어야 합니다.
+06시부터 21시까지 정각 기준 1시간 단위로 예약할 수 있고, 동일 시설의 같은 시간에는 한 예약만 확정됩니다.
+공공 API에서 실시간 조회한 시설은 내부 시설 ID가 없으므로 현재 검색·안내만 지원합니다.
 
 ### 관리자 로그인
 

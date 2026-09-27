@@ -5,9 +5,12 @@ import com.cheche.facility.domain.FacilityStatus;
 import com.cheche.facility.dto.*;
 import com.cheche.facility.repository.FacilityRepository;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,30 +25,36 @@ public class UserFacilityService {
             "찾아줘", "보여줘", "알려줘", "이용", "하고", "싶어", "할수있는");
 
     private final FacilityRepository repository;
+    private final SeoulPublicFacilityClient seoulPublicFacilityClient;
+    private final KspoSportsValueClient kspoSportsValueClient;
 
-    public UserFacilityService(FacilityRepository repository) {
+    public UserFacilityService(FacilityRepository repository,
+                               SeoulPublicFacilityClient seoulPublicFacilityClient,
+                               KspoSportsValueClient kspoSportsValueClient) {
         this.repository = repository;
+        this.seoulPublicFacilityClient = seoulPublicFacilityClient;
+        this.kspoSportsValueClient = kspoSportsValueClient;
     }
 
     @Transactional(readOnly = true)
     public UserHomeResponse home(String regionCode) {
-        List<UserFacilityCard> recommendations = operatingFacilities(regionCode).stream()
+        List<UserFacilityCard> recommendations = regionalFacilityCards(regionCode).stream()
                 .limit(HOME_RECOMMENDATION_LIMIT)
-                .map(UserFacilityCard::from)
                 .toList();
+        List<UserFacilityCard> kspoFacilities = kspoSportsValueClient.findAll().stream().limit(6).toList();
         return new UserHomeResponse("내 주변 체육시설", "원하는 운동이나 지역을 자연어로 검색해 보세요.",
-                blankToNull(regionCode), recommendations);
+                blankToNull(regionCode), recommendations, kspoFacilities);
     }
 
     @Transactional(readOnly = true)
     public NaturalLanguageSearchResponse search(NaturalLanguageSearchRequest request, String regionCode) {
         List<String> keywords = keywords(request.query());
-        List<UserFacilityCard> matches = operatingFacilities(regionCode).stream()
+        List<UserFacilityCard> matches = availableFacilityCards(regionCode).stream()
                 .map(facility -> new ScoredFacility(facility, score(facility, keywords)))
                 .filter(candidate -> keywords.isEmpty() || candidate.score() > 0)
                 .sorted(Comparator.comparingInt(ScoredFacility::score).reversed()
-                        .thenComparing(candidate -> candidate.facility().getName()))
-                .map(candidate -> UserFacilityCard.from(candidate.facility()))
+                        .thenComparing(candidate -> candidate.facility().name()))
+                .map(ScoredFacility::facility)
                 .toList();
 
         boolean empty = matches.isEmpty();
@@ -84,6 +93,26 @@ public class UserFacilityService {
                 : repository.findAllByStatusAndRegionCodeOrderByNameAsc(FacilityStatus.OPERATING, normalizedRegion);
     }
 
+    private List<UserFacilityCard> availableFacilityCards(String regionCode) {
+        List<UserFacilityCard> combined = new ArrayList<>(regionalFacilityCards(regionCode));
+        combined.addAll(kspoSportsValueClient.findAll());
+        return deduplicate(combined);
+    }
+
+    private List<UserFacilityCard> regionalFacilityCards(String regionCode) {
+        List<UserFacilityCard> combined = new ArrayList<>();
+        operatingFacilities(regionCode).stream().map(UserFacilityCard::from).forEach(combined::add);
+        combined.addAll(seoulPublicFacilityClient.findByRegion(regionCode));
+        return deduplicate(combined);
+    }
+
+    private List<UserFacilityCard> deduplicate(List<UserFacilityCard> combined) {
+        Map<String, UserFacilityCard> unique = new LinkedHashMap<>();
+        combined.forEach(card -> unique.putIfAbsent(
+                normalize(card.regionName()) + '|' + normalize(card.name()) + '|' + normalize(card.type()), card));
+        return new ArrayList<>(unique.values());
+    }
+
     private Facility find(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "체육시설을 찾을 수 없습니다."));
@@ -108,18 +137,16 @@ public class UserFacilityService {
                 .replaceFirst("할$", "");
     }
 
-    private int score(Facility facility, List<String> keywords) {
-        String name = normalize(facility.getName());
-        String type = normalize(facility.getType());
-        String region = normalize(facility.getRegionName());
-        String address = normalize(facility.getAddress());
-        String notice = normalize(facility.getPublicNotice());
+    private int score(UserFacilityCard facility, List<String> keywords) {
+        String name = normalize(facility.name());
+        String type = normalize(facility.type());
+        String region = normalize(facility.regionName());
+        String address = normalize(facility.address());
         return keywords.stream().mapToInt(keyword -> {
             String normalized = normalize(keyword);
             if (name.contains(normalized)) return 5;
             if (type.contains(normalized)) return 4;
             if (region.contains(normalized) || address.contains(normalized)) return 3;
-            if (notice.contains(normalized)) return 1;
             return 0;
         }).sum();
     }
@@ -132,5 +159,5 @@ public class UserFacilityService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private record ScoredFacility(Facility facility, int score) {}
+    private record ScoredFacility(UserFacilityCard facility, int score) {}
 }
