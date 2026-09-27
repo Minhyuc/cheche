@@ -20,3 +20,15 @@ integrations:
     base-url: ${KSPO_FACILITY_API_URL:https://apis.data.go.kr/B551014/SRVC_API_SFMS_FACI/TODZ_API_SFMS_FACI}
     api-key: ${DATA_GO_KR_SERVICE_KEY:}
     page-size: ${KSPO_API_PAGE_SIZE:1000}
+
+seoul:
+  open-api:
+    base-url: ${SEOUL_OPEN_API_BASE_URL:http://openapi.seoul.go.kr:8088}
+    key: ${SEOUL_OPEN_API_KEY:sample}
+    fetch-limit: ${SEOUL_OPEN_API_FETCH_LIMIT:1000}
+
+kspo:
+  open-api:
+    base-url: ${KSPO_OPEN_API_BASE_URL:https://apis.data.go.kr/B551014/SRVC_VCENTER_TMTBL}
+    key: ${KSPO_OPEN_API_KEY:}
+    fetch-limit: ${KSPO_OPEN_API_FETCH_LIMIT:1000}

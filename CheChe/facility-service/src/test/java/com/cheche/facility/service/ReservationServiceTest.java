@@ -1,0 +1,71 @@
+package com.cheche.facility.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import com.cheche.facility.domain.*;
+import com.cheche.facility.dto.ReservationCreateRequest;
+import com.cheche.facility.repository.FacilityRepository;
+import com.cheche.facility.repository.ReservationRepository;
+import java.time.*;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
+
+class ReservationServiceTest {
+    private ReservationRepository reservationRepository;
+    private FacilityRepository facilityRepository;
+    private ReservationService service;
+    private Facility facility;
+
+    @BeforeEach
+    void setUp() {
+        reservationRepository = mock(ReservationRepository.class);
+        facilityRepository = mock(FacilityRepository.class);
+        Clock clock = Clock.fixed(Instant.parse("2026-09-27T01:00:00Z"), ZoneId.of("Asia/Seoul"));
+        service = new ReservationService(reservationRepository, facilityRepository, clock);
+        facility = new Facility("강남구민체육관", "배드민턴장", "11680", "서울특별시 강남구",
+                "서울 강남구 체육관로 1", "02-0000-0000", 1L, "정상 운영");
+        ReflectionTestUtils.setField(facility, "id", 10L);
+        when(facilityRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(facility));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    @Test
+    void createsOneHourReservationForAvailableSlot() {
+        var response = service.create(20L, "11680",
+                new ReservationCreateRequest(10L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2));
+
+        assertEquals(LocalTime.of(20, 0), response.endTime());
+        assertEquals(ReservationStatus.CONFIRMED, response.status());
+        verify(reservationRepository).save(any(Reservation.class));
+    }
+
+    @Test
+    void rejectsAlreadyReservedSlot() {
+        when(reservationRepository.existsByFacilityIdAndReservationDateAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
+                anyLong(), any(), eq(ReservationStatus.CONFIRMED), any(), any())).thenReturn(true);
+
+        assertThrows(ResponseStatusException.class, () -> service.create(20L, "11680",
+                new ReservationCreateRequest(10L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2)));
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsFacilityOutsideUsersRegion() {
+        assertThrows(ResponseStatusException.class, () -> service.create(20L, "11710",
+                new ReservationCreateRequest(10L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2)));
+    }
+
+    @Test
+    void userCannotCancelAnotherUsersReservation() {
+        Reservation reservation = new Reservation(99L, facility, LocalDate.of(2026, 10, 1),
+                LocalTime.of(19, 0), LocalTime.of(20, 0), 2);
+        when(reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
+
+        assertThrows(ResponseStatusException.class, () -> service.cancel(20L, 1L));
+    }
+}

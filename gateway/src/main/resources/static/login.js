@@ -1,118 +1,32 @@
-const state = { mode: 'user', accessToken: null };
-const tabs = [...document.querySelectorAll('[role="tab"]')];
-const loginForm = document.querySelector('#login-panel');
-const regionForm = document.querySelector('#region-form');
-const completePanel = document.querySelector('#complete-panel');
-const registerButton = document.querySelector('#register-button');
-const feedback = document.querySelector('#feedback');
-
-function setMode(mode) {
-  state.mode = mode;
-  tabs.forEach((tab) => {
-    const selected = tab.dataset.mode === mode;
-    tab.classList.toggle('active', selected);
-    tab.setAttribute('aria-selected', String(selected));
-  });
-  document.querySelector('#mode-description').textContent = mode === 'user'
-    ? '사용자 로그인은 현재 인증 기능만 제공됩니다.'
-    : '관리자 로그인 후 담당 지역의 시설과 안전점검을 관리할 수 있습니다.';
-  document.querySelector('#submit-button').textContent = mode === 'user' ? '사용자로 로그인' : '관리자로 로그인';
-  registerButton.classList.toggle('hidden', mode !== 'admin');
-  feedback.textContent = '';
-}
-
-tabs.forEach((tab) => tab.addEventListener('click', () => setMode(tab.dataset.mode)));
-
-async function request(url, options) {
-  const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || data.message || '요청을 처리하지 못했습니다.');
-  return data;
-}
-
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  feedback.textContent = '';
-  const submit = document.querySelector('#submit-button');
-  submit.disabled = true;
-  const credentials = {
-    username: document.querySelector('#username').value,
-    password: document.querySelector('#password').value,
-  };
-  try {
-    const endpoint = state.mode === 'admin' ? '/auth/admin/login' : '/auth/user/login';
-    const result = await request(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials),
-    });
-    state.accessToken = result.accessToken;
-    if (state.mode === 'admin' && result.initialSetupRequired) {
-      loginForm.classList.add('hidden');
-      document.querySelector('.tabs').classList.add('hidden');
-      regionForm.classList.remove('hidden');
-    } else {
-      showComplete(
-        state.mode === 'admin' ? '관리자 로그인 완료' : '사용자 로그인 완료',
-        state.mode === 'admin'
-          ? `${result.regionName || '전체 지역'} 관리 권한으로 로그인했습니다.`
-          : result.message,
-      );
-    }
-  } catch (error) {
-    feedback.textContent = error.message;
-  } finally {
-    submit.disabled = false;
-  }
-});
-
-registerButton.addEventListener('click', async () => {
-  feedback.textContent = '';
-  try {
-    const result = await request('/auth/admin/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: document.querySelector('#username').value,
-        password: document.querySelector('#password').value,
-      }),
-    });
-    feedback.textContent = `${result.username} 관리자 계정이 생성되었습니다. 로그인해 주세요.`;
-    feedback.classList.add('success');
-  } catch (error) {
-    feedback.classList.remove('success');
-    feedback.textContent = error.message;
-  }
-});
-
-regionForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const regionFeedback = document.querySelector('#region-feedback');
-  try {
-    const result = await request('/api/admins/me/region', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${state.accessToken}`,
-      },
-      body: JSON.stringify({
-        regionCode: document.querySelector('#region-code').value,
-        regionName: document.querySelector('#region-name').value,
-      }),
-    });
-    regionForm.classList.add('hidden');
-    showComplete('지역 설정 완료', `${result.regionName}의 체육시설 관리자로 설정되었습니다.`);
-  } catch (error) {
-    regionFeedback.textContent = error.message;
-  }
-});
-
-function showComplete(title, message) {
-  loginForm.classList.add('hidden');
-  document.querySelector('.tabs').classList.add('hidden');
-  completePanel.classList.remove('hidden');
-  document.querySelector('#complete-title').textContent = title;
-  document.querySelector('#complete-message').textContent = message;
-}
-
-document.querySelector('#back-button').addEventListener('click', () => window.location.reload());
+const state={mode:'user',token:sessionStorage.getItem('checheToken'),profile:null,selected:null,regions:[],people:2};
+const $=(s)=>document.querySelector(s),$$=(s)=>[...document.querySelectorAll(s)];
+const escapeHtml=(v='')=>String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+const fallbackImage='data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 360"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#c9e5fb"/><stop offset="1" stop-color="#edf6fd"/></linearGradient></defs><rect width="600" height="360" fill="url(#g)"/><path d="M100 260V140l110-60 100 55 90-35 100 55v105" fill="#fff" opacity=".85"/><path d="M60 270h480" stroke="#83b9df" stroke-width="12"/><text x="300" y="325" text-anchor="middle" fill="#4386ba" font-size="28" font-family="sans-serif">KSPO SPORTS</text></svg>`);
+async function api(url,options={}){const headers={...(options.headers||{})};if(state.token)headers.Authorization=`Bearer ${state.token}`;const response=await fetch(url,{...options,headers});const data=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401){logout();throw new Error('로그인이 만료되었습니다. 다시 로그인해주세요.')}throw new Error(data.detail||data.message||`요청을 처리하지 못했습니다. (${response.status})`)}return data}
+function show(name){$$('.screen').forEach(el=>el.classList.toggle('active',el.id===`${name}-screen`));window.scrollTo(0,0);if(name==='home')loadHome();if(name==='reports')loadReports();if(name==='profile')renderProfile()}
+function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2400)}
+function setMode(mode){state.mode=mode;$$('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));$('#signup-button').classList.toggle('hidden',mode==='admin');$('#admin-register-button').classList.toggle('hidden',mode!=='admin');$('#auth-feedback').textContent=''}
+async function authenticate(kind){const username=$('#username').value.trim(),password=$('#password').value;const endpoint=kind==='register'?`/auth/${state.mode}/register`:`/auth/${state.mode}/login`;const result=await api(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});if(kind==='register'){toast(`${state.mode==='user'?'사용자':'관리자'} 계정이 생성되었습니다.`);return}state.token=result.accessToken;sessionStorage.setItem('checheToken',state.token);if($('#remember-me').checked)localStorage.setItem('checheToken',state.token);if(state.mode==='admin'){if(result.initialSetupRequired){await loadRegions();show('region')}else{toast('관리자 로그인이 완료되었습니다. 관리자 API를 사용할 수 있습니다.')}return}state.profile=result;if(result.initialSetupRequired){await loadRegions();show('region')}else show('home')}
+$$('.auth-tab').forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.mode)));$('#admin-shortcut').addEventListener('click',()=>{setMode('admin');$('#username').focus()});
+$('#login-form').addEventListener('submit',async e=>{e.preventDefault();const button=$('#login-button');button.disabled=true;$('#auth-feedback').textContent='';try{await authenticate('login')}catch(err){$('#auth-feedback').textContent=err.message}finally{button.disabled=false}});
+$('#signup-button').addEventListener('click',async()=>{try{await authenticate('register')}catch(err){$('#auth-feedback').textContent=err.message}});$('#admin-register-button').addEventListener('click',async()=>{try{await authenticate('register')}catch(err){$('#auth-feedback').textContent=err.message}});
+async function loadRegions(){try{state.regions=await api('/api/users/regions');renderRegions()}catch(err){const defaults=[['11110','종로구'],['11140','중구'],['11170','용산구'],['11200','성동구'],['11215','광진구'],['11230','동대문구'],['11260','중랑구'],['11290','성북구'],['11305','강북구'],['11320','도봉구'],['11350','노원구'],['11380','은평구'],['11410','서대문구'],['11440','마포구'],['11470','양천구'],['11500','강서구'],['11530','구로구'],['11545','금천구'],['11560','영등포구'],['11590','동작구'],['11620','관악구'],['11650','서초구'],['11680','강남구'],['11710','송파구'],['11740','강동구']];state.regions=defaults.map(([regionCode,regionName])=>({regionCode,regionName:`서울특별시 ${regionName}`}));renderRegions()}}
+function renderRegions(){const select=$('#region-select');select.innerHTML='<option value="">지역을 선택해주세요</option>'+state.regions.map(r=>`<option value="${escapeHtml(r.regionCode)}">${escapeHtml(r.regionName)}</option>`).join('')}
+$('#region-form').addEventListener('submit',async e=>{e.preventDefault();const code=$('#region-select').value,name=$('#region-select').selectedOptions[0]?.textContent;try{const url=state.mode==='admin'?'/api/admins/me/region':'/api/users/me/region';const body=state.mode==='admin'?{regionCode:code,regionName:name}:{regionCode:code};state.profile=await api(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(state.mode==='admin'){toast('관리자 담당 지역이 설정되었습니다.');show('auth')}else show('home')}catch(err){$('#region-feedback').textContent=err.message}});
+function facilityImage(f){return f.imageUrl||fallbackImage}function cardHtml(f,compact=false){const attrs=`data-facility='${escapeHtml(JSON.stringify(f))}'`;if(compact)return `<button class="facility-row" ${attrs}><img src="${escapeHtml(facilityImage(f))}" alt=""><div class="row-body"><h3>${escapeHtml(f.name)}</h3><p>📍 ${escapeHtml(f.regionName||f.address||'서울')}</p><p>${escapeHtml(f.openingTime||'운영시간 확인 필요')}${f.closingTime?' ~ '+escapeHtml(f.closingTime):''}</p><div class="tags"><span class="tag">${escapeHtml(f.type||'체육시설')}</span><span class="status-pill">${escapeHtml(f.statusLabel||'운영 중')}</span></div></div></button>`;return `<button class="facility-card" ${attrs}><img src="${escapeHtml(facilityImage(f))}" alt=""><div class="facility-card-body"><div class="section-title"><h3>${escapeHtml(f.name)}</h3><span class="status-pill">${escapeHtml(f.statusLabel||'운영 중')}</span></div><p>📍 ${escapeHtml(f.address||f.regionName||'서울')}</p><p>◷ ${escapeHtml(f.openingTime||'운영시간 확인 필요')}</p><span class="tag">${escapeHtml(f.type||'체육시설')}</span></div></button>`}
+function bindFacilityCards(root){root.querySelectorAll('[data-facility]').forEach(button=>button.addEventListener('click',()=>openFacility(JSON.parse(button.dataset.facility))))}
+async function loadHome(){if(!state.token)return;const list=$('#recommendation-list'),kspoList=$('#kspo-list'),kspoSection=$('#kspo-section');list.innerHTML='<div class="loading-card">시설을 불러오는 중...</div>';try{const data=await api('/api/user/facilities/home');if(!state.profile)state.profile={regionCode:data.regionCode,regionName:data.title};list.innerHTML=data.recommendations?.length?data.recommendations.map(f=>cardHtml(f)).join(''):'<div class="loading-card">설정 지역의 시설이 아직 없습니다.</div>';bindFacilityCards(list);const official=data.kspoFacilities||[];kspoSection.classList.toggle('hidden',!official.length);kspoList.innerHTML=official.map(f=>cardHtml(f)).join('');bindFacilityCards(kspoList)}catch(err){list.innerHTML=`<div class="loading-card">${escapeHtml(err.message)}</div>`}}
+async function searchFacilities(query){show('search');$('#search-query').value=query;const results=$('#search-results');results.innerHTML='<div class="loading-card">AI가 조건에 맞는 시설을 찾고 있어요...</div>';try{const data=await api('/api/user/facilities/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query})});$('#search-summary').classList.remove('hidden');$('#search-summary').textContent=data.message||`${data.totalCount||0}개의 시설을 찾았어요.`;results.innerHTML=data.facilities?.length?data.facilities.map(f=>cardHtml(f,true)).join(''):'<div class="empty-state"><span>⌕</span><p>조건에 맞는 시설이 없습니다.<br>종목이나 시간을 바꿔보세요.</p></div>';bindFacilityCards(results)}catch(err){results.innerHTML=`<div class="empty-state"><p>${escapeHtml(err.message)}</p></div>`}}
+$('#quick-search-form').addEventListener('submit',e=>{e.preventDefault();const q=$('#quick-query').value.trim();if(q)searchFacilities(q)});$('#search-form').addEventListener('submit',e=>{e.preventDefault();const q=$('#search-query').value.trim();if(q)searchFacilities(q)});$$('[data-sport]').forEach(b=>b.addEventListener('click',()=>{const sport=b.dataset.sport;if(sport)searchFacilities(`${state.profile?.regionName||'서울'} ${sport}`);else show('search')}));$('#view-all-button').addEventListener('click',()=>searchFacilities(state.profile?.regionName||'서울 체육시설'));
+$('#kspo-search-button').addEventListener('click',()=>searchFacilities('KSPO 스포츠가치센터'));
+async function openFacility(card){state.selected=card;let detail={...card,reservable:card.status!=='CLOSED',publicNotice:'시설 운영 정보는 현장 상황에 따라 달라질 수 있습니다.'};if(card.id)try{detail={...detail,...await api(`/api/user/facilities/${card.id}`)}}catch(e){}state.selected=detail;$('#detail-image').src=facilityImage(detail);$('#detail-title').textContent=detail.name;$('#detail-status').textContent=detail.statusLabel||'운영 중';$('#detail-address').textContent=`📍 ${detail.address||detail.regionName||'주소 정보 없음'}`;$('#detail-phone').textContent=`☎ ${detail.phone||'시설 문의처 확인 필요'}`;$('#detail-hours').textContent=detail.openingTime?(detail.closingTime?`${detail.openingTime} - ${detail.closingTime}`:detail.openingTime):'현장 확인';$('#detail-reservable').textContent=detail.id&&detail.reservable?'예약 가능':'이용 확인';$('#detail-types').innerHTML=`<span>${escapeHtml(detail.type||'체육시설')}</span><span>${escapeHtml(detail.regionName||'서울')}</span>`;$('#detail-notice').textContent=detail.publicNotice||'시설 이용 전 운영 시간과 이용 방법을 확인해주세요.';$('#report-from-detail').disabled=!detail.id;$('#reserve-button').disabled=!detail.id||!detail.reservable;$('#report-from-detail').title=$('#reserve-button').title=detail.id?'':'공공 API 시설은 내부 등록 후 예약·제보할 수 있습니다.';show('detail')}
+$('#favorite-button').addEventListener('click',e=>{e.currentTarget.textContent=e.currentTarget.textContent==='♡'?'♥':'♡';toast(e.currentTarget.textContent==='♥'?'관심 시설에 저장했어요.':'관심 시설에서 삭제했어요.')});
+async function loadAvailability(){const f=state.selected,date=$('#reserve-date').value,times=$('.time-options');if(!f?.id||!date)return;times.innerHTML='<div class="loading-card">시간 확인 중...</div>';try{const data=await api(`/api/user/reservations/availability?facilityId=${f.id}&date=${date}`);times.innerHTML=data.availableStartTimes.length?data.availableStartTimes.map((time,index)=>`<button class="${index===0?'selected':''}">${escapeHtml(time.slice(0,5))}</button>`).join(''):'<div class="loading-card">예약 가능한 시간이 없습니다.</div>';times.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{times.querySelectorAll('button').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')}))}catch(err){times.innerHTML=`<div class="loading-card">${escapeHtml(err.message)}</div>`}}
+$('#reserve-button').addEventListener('click',()=>{const f=state.selected;if(!f?.id){toast('공공 API 시설의 직접 예약은 준비 중입니다.');return}$('#reserve-facility').innerHTML=`${escapeHtml(f.name)}<small>${escapeHtml(f.type||'체육시설')} · ${escapeHtml(f.address||f.regionName||'')}</small>`;const date=new Date();date.setDate(date.getDate()+1);const min=date.toISOString().slice(0,10);date.setDate(date.getDate()+89);$('#reserve-date').min=min;$('#reserve-date').max=date.toISOString().slice(0,10);$('#reserve-date').value=min;show('reserve');loadAvailability()});
+$('#reserve-date').addEventListener('change',loadAvailability);$('#reserve-confirm').textContent='예약하기';$('#reserve-confirm').addEventListener('click',async()=>{const selectedTime=$('.time-options .selected');if(!selectedTime){toast('예약 가능한 시간을 선택해주세요.');return}const button=$('#reserve-confirm');button.disabled=true;try{await api('/api/user/reservations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({facilityId:state.selected.id,reservationDate:$('#reserve-date').value,startTime:`${selectedTime.textContent}:00`,participantCount:state.people})});toast('예약이 확정되었습니다.');setTimeout(()=>show('reports'),700)}catch(err){toast(err.message);loadAvailability()}finally{button.disabled=false}});$('#people-minus').addEventListener('click',()=>{$('#people-count').textContent=state.people=Math.max(1,state.people-1)});$('#people-plus').addEventListener('click',()=>{$('#people-count').textContent=state.people=Math.min(20,state.people+1)});
+$('#report-from-detail').addEventListener('click',()=>{const f=state.selected;if(!f?.id){toast('공공 API 시설의 제보 연동은 준비 중입니다.');return}$('#report-facility').innerHTML=`${escapeHtml(f.name)}<small>${escapeHtml(f.address||f.regionName||'')}</small>`;show('report')});$('#report-photo').addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const preview=$('#photo-preview');preview.textContent=file.name;preview.style.backgroundImage=`linear-gradient(#ffffff55,#ffffff55),url(${URL.createObjectURL(file)})`});$('#report-form').addEventListener('submit',async e=>{e.preventDefault();const f=state.selected,feedback=$('#report-feedback');if(!f?.id){feedback.textContent='시설 정보가 없어 접수할 수 없습니다.';return}const form=new FormData();form.append('facilityId',String(f.id));form.append('category',$('#report-category').value);form.append('locationDescription',$('#report-location').value);form.append('comment',$('#report-comment').value);form.append('photo',$('#report-photo').files[0]);try{await api('/api/user/reports',{method:'POST',body:form});feedback.classList.add('success');feedback.textContent='제보가 접수되었습니다.';setTimeout(()=>show('reports'),800)}catch(err){feedback.classList.remove('success');feedback.textContent=err.message}});
+async function loadReports(){const list=$('#reports-list'),reservationsList=$('#reservations-list');list.innerHTML='<div class="loading-card">제보 내역을 불러오는 중...</div>';reservationsList.innerHTML='<div class="loading-card">예약 내역을 불러오는 중...</div>';try{const reservations=await api('/api/user/reservations');reservationsList.innerHTML=reservations.length?reservations.map(r=>`<article class="reservation-item"><header><h3>${escapeHtml(r.facilityName)}</h3><span class="status-pill">${escapeHtml(r.statusLabel)}</span></header><p>📅 ${escapeHtml(r.reservationDate)} · ${escapeHtml(r.startTime.slice(0,5))}~${escapeHtml(r.endTime.slice(0,5))}</p><p>👥 ${r.participantCount}명 · ${escapeHtml(r.regionName)}</p><button data-cancel-reservation="${r.id}" ${r.status!=='CONFIRMED'?'disabled':''}>${r.status==='CONFIRMED'?'예약 취소':'취소 완료'}</button></article>`).join(''):'<div class="empty-state"><span>▣</span><p>아직 예약 내역이 없습니다.</p></div>';reservationsList.querySelectorAll('[data-cancel-reservation]').forEach(b=>b.addEventListener('click',async()=>{if(!confirm('이 예약을 취소할까요?'))return;try{await api(`/api/user/reservations/${b.dataset.cancelReservation}/cancel`,{method:'PATCH'});toast('예약이 취소되었습니다.');loadReports()}catch(err){toast(err.message)}}))}catch(err){reservationsList.innerHTML=`<div class="empty-state"><p>${escapeHtml(err.message)}</p></div>`}try{const reports=await api('/api/user/reports');list.innerHTML=reports.length?reports.map(r=>`<article class="report-item"><img src="${escapeHtml(r.photoUrl||fallbackImage)}" alt=""><div><span class="status-pill">${escapeHtml(r.statusLabel)}</span><h3>${escapeHtml(r.facilityName)}</h3><p>${escapeHtml(r.categoryLabel)} · ${escapeHtml(r.locationDescription)}</p><p>${escapeHtml(new Date(r.createdAt).toLocaleDateString('ko-KR'))}</p></div></article>`).join(''):'<div class="empty-state"><span>✓</span><p>아직 작성한 시설 제보가 없습니다.</p></div>'}catch(err){list.innerHTML=`<div class="empty-state"><p>${escapeHtml(err.message)}</p></div>`}}
+function renderProfile(){$('#profile-name').textContent=state.profile?.username||'사용자';$('#profile-region').textContent=state.profile?.regionName||'서울 지역 사용자'}$('#change-region').addEventListener('click',async()=>{await loadRegions();show('region')});
+function logout(){state.token=null;state.profile=null;sessionStorage.removeItem('checheToken');localStorage.removeItem('checheToken');show('auth')}$$('[data-action="logout"]').forEach(b=>b.addEventListener('click',logout));$$('[data-go]').forEach(b=>b.addEventListener('click',()=>show(b.dataset.go)));
+document.addEventListener('error',e=>{if(e.target.tagName==='IMG'){e.target.onerror=null;e.target.src=fallbackImage}},true);
+(async()=>{const remembered=localStorage.getItem('checheToken');if(!state.token&&remembered){state.token=remembered;sessionStorage.setItem('checheToken',remembered)}if(state.token)try{state.profile=await api('/api/users/me');if(state.profile.initialSetupRequired){await loadRegions();show('region')}else show('home')}catch(e){logout()}})();

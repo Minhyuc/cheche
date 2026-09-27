@@ -6,6 +6,7 @@ public record UserHomeResponse(
         String title,
         String description,
         String regionCode,
-        List<UserFacilityCard> recommendations
+        List<UserFacilityCard> recommendations,
+        List<UserFacilityCard> kspoFacilities
 ) {
 }
