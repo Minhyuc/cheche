@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AdminService {
+    private static final String MVP_SUPER_ADMIN_USERNAME = "superadmin";
     private final AdministratorRepository repository;
 
     public AdminService(AdministratorRepository repository) {
@@ -24,6 +25,10 @@ public class AdminService {
         Administrator admin = repository.findByUserId(request.userId())
                 .orElseGet(() -> new Administrator(request.userId(), request.username(), null));
         admin.syncIdentity(request.username(), admin.getEmail());
+        if (MVP_SUPER_ADMIN_USERNAME.equalsIgnoreCase(request.username())) {
+            admin.changeRole(AdminRole.SUPER_USER);
+            admin.assignRegion(null, null);
+        }
         return AdminResponse.from(repository.save(admin));
     }
 

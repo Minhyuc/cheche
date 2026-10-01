@@ -153,6 +153,11 @@ Figma 사용자 화면 연동을 위해 홈 응답에는 다음 필드가 추가
 `capacity`, `applicationMethod`, `closedDays`, `imageUrl`, `latitude`, `longitude`,
 `availableFacilities`, `amenities`, `reservationOptionsPath`가 포함됩니다.
 
+`usageFee`는 1인 예약 요금(원)입니다. 시설 공공데이터 또는 관리자가 등록한 요금을 우선 사용하고,
+원본 요금이 확인되지 않은 시설은 MVP 정책 요금 `3333`을 반환합니다. `feeInfo`는 제공기관의
+원문 요금 안내이며, `feeInfo=null`이면 화면에 “MVP 기본 요금”으로 표시해 주세요. `0`은 무료로
+확인된 시설에만 사용합니다.
+
 시설 검색 결과는 CheChe DB와 서울 열린데이터광장의 `ListPublicReservationSport` 결과를 합쳐 반환합니다.
 공공 API 항목은 `source`가 `SEOUL_OPEN_API`이며 `externalId`, `phone`, `imageUrl`,
 `openingTime`, `closingTime`, `statusLabel`을 포함합니다. 동일 지역·시설명·종목 데이터는 한 건으로 합칩니다.
@@ -187,6 +192,9 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 
 처리 상태는 `RECEIVED`, `REVIEWING`, `REPAIR_SCHEDULED`, `COMPLETED`, `REJECTED`입니다.
 사용자는 본인이 작성한 요청만 볼 수 있습니다.
+운영 종료(`CLOSED`) 시설도 과거 이용 중 발견한 문제를 신고할 수 있습니다. 다만 사용자 지역과
+시설 지역이 다르거나 시설이 없으면 각각 `403`, `404`를 반환합니다. 시설 서비스 장애일 때만
+`502`를 반환합니다. 프론트는 오류 응답의 `message`를 사용자 안내 문구로 표시할 수 있습니다.
 
 ### 사용자 시설 예약
 
@@ -210,12 +218,14 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 ```
 
 예약은 운영 중인 CheChe 등록 시설에서만 가능하며, 사용자가 설정한 지역의 시설이어야 합니다.
-공식 데이터에 운영시간·요금·수용인원이 있으면 해당 값을 사용하고, 없는 시설만 MVP 기본값을 사용합니다.
+공식 데이터에 운영시간·요금·수용인원이 있으면 해당 값을 사용합니다. 요금이 확인되지 않은 시설은
+MVP 정책 요금 1인 `3,333원`을 시설 상세, 예약 옵션, 결제 확인, 실제 예약에 동일하게 적용합니다.
 정각 기준 1시간 단위로 예약할 수 있습니다. 시설 수용인원에서 같은 시간대의 확정 예약 인원을
 차감하며 잔여 인원을 초과한 예약은 거절합니다. 시설 행 잠금으로 동시 예약도 순차 처리합니다.
 
 `options` 응답은 오늘부터 5일의 날짜 선택지와 시설 운영시간 안의 예약 시간대를 반환합니다.
-시간 상태는 `AVAILABLE`, `RESERVED`, `CLOSED`입니다. 공식 요금이 없을 때만 1인 5,000원을 사용합니다.
+시간 상태는 `AVAILABLE`, `RESERVED`, `CLOSED`입니다. 공식 요금이 없으면 최상위와 각 시간대의
+`pricePerPerson`은 MVP 정책값 `3333`입니다.
 각 시간 항목에는 `capacity`, `reservedParticipants`, `remainingCapacity`가 포함됩니다.
 예약 생성 응답에는 `pricePerPerson`과 `totalFee`가 포함됩니다.
 
@@ -227,7 +237,7 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 | 최상위 | `facilityName` | `string` | 시설명 |
 | 최상위 | `facilityType` | `string` | 시설 종목·유형 |
 | 최상위 | `selectedDate` | `YYYY-MM-DD` | 현재 선택 날짜 |
-| 최상위 | `pricePerPerson` | `number` | 1인 요금 |
+| 최상위 | `pricePerPerson` | `number` | 1인 예약 요금(원). 원본 미확인 시 `3333` |
 | 최상위 | `minParticipants` | `number` | 최소 이용 인원 |
 | 최상위 | `maxParticipants` | `number` | 최대 이용 인원 |
 | 최상위 | `dates` | `ReservationDateOption[]` | 날짜 선택 목록 |
@@ -240,7 +250,7 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 | `timeSlots[]` | `endTime` | `HH:mm:ss` | 종료 시간 |
 | `timeSlots[]` | `status` | `string` | `AVAILABLE`, `RESERVED`, `CLOSED` |
 | `timeSlots[]` | `statusLabel` | `string` | 화면 표시용 상태 문구 |
-| `timeSlots[]` | `pricePerPerson` | `number` | 해당 시간대 1인 요금 |
+| `timeSlots[]` | `pricePerPerson` | `number` | 해당 시간대 1인 요금. 원본 미확인 시 `3333` |
 | `timeSlots[]` | `capacity` | `number` | 전체 수용 인원 |
 | `timeSlots[]` | `reservedParticipants` | `number` | 예약 완료 인원 |
 | `timeSlots[]` | `remainingCapacity` | `number` | 현재 예약 가능 인원 |
@@ -281,10 +291,22 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 
 `checkout`은 공공데이터에 제공기관 홈페이지가 있으면 `externalReservationUrl`을 반환합니다.
 실결제는 PG사 상점키가 설정되기 전까지 `onlinePaymentAvailable=false`입니다.
+`checkout.pricePerPerson`도 같은 요금 정책을 사용하며 원본 미확인 시 `3333`입니다.
 
 ### 관리자 로그인
 
 `POST /auth/admin/login`
+
+MVP 고정 슈퍼관리자 계정:
+
+```text
+아이디: superadmin
+비밀번호: superadmin
+```
+
+login-service가 시작될 때 계정이 자동 생성되며 관리자 로그인 시 `role=SUPER_USER`,
+`initialSetupRequired=false`, `regionCode=null`로 반환됩니다. 지역 선택 화면으로 이동시키지 말고
+슈퍼관리자 대시보드로 바로 이동합니다. 이 계정은 MVP 전용이므로 운영 배포 전 제거해야 합니다.
 
 ```json
 {

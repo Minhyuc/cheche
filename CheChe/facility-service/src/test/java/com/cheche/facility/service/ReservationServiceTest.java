@@ -29,6 +29,8 @@ class ReservationServiceTest {
         service = new ReservationService(reservationRepository, facilityRepository, clock);
         facility = new Facility("강남구민체육관", "배드민턴장", "11680", "서울특별시 강남구",
                 "서울 강남구 체육관로 1", "02-0000-0000", 1L, "정상 운영");
+        facility.enrichPublicData(null, null, null, null, null, 5000,
+                "1인 1시간 5,000원", null, null, null, null, null, null, null);
         ReflectionTestUtils.setField(facility, "id", 10L);
         when(facilityRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(facility));
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -77,7 +79,7 @@ class ReservationServiceTest {
     @Test
     void userCannotCancelAnotherUsersReservation() {
         Reservation reservation = new Reservation(99L, facility, LocalDate.of(2026, 10, 1),
-                LocalTime.of(19, 0), LocalTime.of(20, 0), 2);
+                LocalTime.of(19, 0), LocalTime.of(20, 0), 2, 5000);
         when(reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
 
         assertThrows(ResponseStatusException.class, () -> service.cancel(20L, 1L));
@@ -96,5 +98,26 @@ class ReservationServiceTest {
         assertEquals("AVAILABLE", response.timeSlots().get(0).status());
         assertEquals(20, response.timeSlots().get(0).remainingCapacity());
         assertEquals(5000, response.pricePerPerson());
+    }
+
+    @Test
+    void unknownPublicFeeUsesSingleMvpFallbackAcrossOptionsAndReservation() {
+        Facility unknownFeeFacility = new Facility("가로공원 (1)_남단", "체육시설", "11680",
+                "서울특별시 강남구", "서울 강남구", null, 1L, "정상 운영");
+        ReflectionTestUtils.setField(unknownFeeFacility, "id", 11L);
+        when(facilityRepository.findById(11L)).thenReturn(Optional.of(unknownFeeFacility));
+        when(facilityRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(unknownFeeFacility));
+        when(reservationRepository.findAllByFacilityIdAndReservationDateAndStatusOrderByStartTimeAsc(
+                11L, LocalDate.of(2026, 10, 1), ReservationStatus.CONFIRMED)).thenReturn(java.util.List.of());
+
+        var options = service.options("11680", 11L, LocalDate.of(2026, 10, 1));
+
+        assertEquals(3333, options.pricePerPerson());
+        assertTrue(options.timeSlots().stream().allMatch(slot -> slot.pricePerPerson() == 3333));
+
+        var reservation = service.create(20L, "11680", new ReservationCreateRequest(
+                11L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2));
+        assertEquals(3333, reservation.pricePerPerson());
+        assertEquals(6666, reservation.totalFee());
     }
 }

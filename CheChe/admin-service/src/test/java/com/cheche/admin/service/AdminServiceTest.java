@@ -29,6 +29,18 @@ class AdminServiceTest {
     }
 
     @Test
+    void mvpSuperAdminIsPromotedWithoutRegionSetup() {
+        when(repository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(repository.save(any(Administrator.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminResponse response = service.sync(new AdminSyncRequest(1L, "superadmin"));
+
+        assertEquals("SUPER_USER", response.role().name());
+        assertFalse(response.initialSetupRequired());
+        assertNull(response.regionCode());
+    }
+
+    @Test
     void regionSetupCompletesOnboarding() {
         Administrator admin = new Administrator(1001L, "서울 관리자", "admin@example.com");
         when(repository.findByUserId(1001L)).thenReturn(Optional.of(admin));

@@ -30,7 +30,7 @@ class UserFacilityReportServiceTest {
     @Test
     void userCanSubmitPhotoAndCommentForFacilityInOwnRegion() {
         var photo = new MockMultipartFile("photo", "damage.jpg", "image/jpeg", new byte[]{1});
-        when(facilityClient.get(10L, "11680")).thenReturn(new FacilitySummary(10L, "강남체육관",
+        when(facilityClient.get(10L, 20L, "11680")).thenReturn(new FacilitySummary(10L, "강남체육관",
                 "체육관", "서울특별시 강남구", "서울 강남구", "02-0000-0000",
                 "OPERATING", "운영 중", null, true, "/guide"));
         when(photoStorage.store(photo)).thenReturn("/inspection-photos/photo.jpg");
@@ -48,6 +48,7 @@ class UserFacilityReportServiceTest {
         assertEquals(ReportStatus.RECEIVED, response.status());
         assertEquals("수리 필요", response.categoryLabel());
         assertEquals("/inspection-photos/photo.jpg", response.photoUrl());
+        verify(facilityClient).get(10L, 20L, "11680");
     }
 
     @Test

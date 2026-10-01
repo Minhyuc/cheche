@@ -60,4 +60,11 @@ public class User {
         this.regionCode = regionCode;
         this.regionName = regionName;
     }
+
+    public void configureAsAdmin(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.accountType = AccountType.ADMIN;
+        this.regionCode = null;
+        this.regionName = null;
+    }
 }

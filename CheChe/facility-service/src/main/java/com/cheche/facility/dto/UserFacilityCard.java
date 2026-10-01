@@ -1,6 +1,7 @@
 package com.cheche.facility.dto;
 
 import com.cheche.facility.domain.Facility;
+import com.cheche.facility.domain.FacilityPricingPolicy;
 import com.cheche.facility.domain.FacilityStatus;
 import java.util.List;
 
@@ -37,7 +38,7 @@ public record UserFacilityCard(
     public static UserFacilityCard from(Facility facility) {
         String openingTime = facility.getWeekdayOpeningTime() == null ? "08:00" : facility.getWeekdayOpeningTime();
         String closingTime = facility.getWeekdayClosingTime() == null ? "22:00" : facility.getWeekdayClosingTime();
-        Integer fee = facility.getUsageFee() == null ? 0 : facility.getUsageFee();
+        Integer fee = FacilityPricingPolicy.resolve(facility);
         return new UserFacilityCard(facility.getId(), facility.getExternalId(),
                 facility.getSource() == null ? "CHECHE" : facility.getSource(), facility.getName(),
                 facility.getType(), facility.getRegionName(), facility.getAddress(), facility.getPhone(),

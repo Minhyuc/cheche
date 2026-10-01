@@ -1,6 +1,7 @@
 package com.cheche.facility.dto;
 
 import com.cheche.facility.domain.Facility;
+import com.cheche.facility.domain.FacilityPricingPolicy;
 import com.cheche.facility.domain.FacilityStatus;
 import java.util.List;
 
@@ -53,7 +54,7 @@ public record UserFacilityDetailResponse(
                 statusLabel(facility.getStatus()), facility.getPublicNotice(),
                 defaultValue(facility.getWeekdayOpeningTime(), "08:00"),
                 defaultValue(facility.getWeekdayClosingTime(), "22:00"),
-                facility.getUsageFee() == null ? 0 : facility.getUsageFee(),
+                FacilityPricingPolicy.resolve(facility),
                 facility.getType() == null ? List.of() : List.of(facility.getType()),
                 split(facility.getAmenities()), favorite,
                 facility.getStatus() == FacilityStatus.OPERATING, facility.getSourceUrl(),

@@ -31,7 +31,7 @@ public class UserFacilityReportService {
                                          String comment, MultipartFile photo) {
         requireText(locationDescription, "시설 내 위치를 입력해 주세요.", 240);
         requireText(comment, "개선이 필요한 내용을 입력해 주세요.", 2000);
-        FacilitySummary facility = facilityClient.get(facilityId, userRegionCode);
+        FacilitySummary facility = facilityClient.get(facilityId, userId, userRegionCode);
         String photoUrl = photoStorage.store(photo);
         FacilityReport report = new FacilityReport(userId, facility.id(), facility.name(),
                 userRegionCode, facility.regionName(), category, locationDescription.trim(),

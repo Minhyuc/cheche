@@ -154,6 +154,17 @@ class UserFacilityServiceTest {
         assertEquals(0.0, response.distanceKm());
     }
 
+    @Test
+    void detailUsesDocumentedMvpFeeWhenPublicDataHasNoFee() {
+        Facility court = facility(2L, "가로공원 (1)_남단", "체육시설", "서울특별시 강남구");
+        when(repository.findById(2L)).thenReturn(Optional.of(court));
+
+        var response = service.detail(20L, 2L, "11680");
+
+        assertEquals(3333, response.usageFee());
+        assertNull(response.feeInfo());
+    }
+
     private Facility facility(Long id, String name, String type, String regionName) {
         Facility facility = new Facility(name, type, "11680", regionName,
                 regionName + " 체육관로 1", "02-0000-0000", 1001L, "정상 운영 중");

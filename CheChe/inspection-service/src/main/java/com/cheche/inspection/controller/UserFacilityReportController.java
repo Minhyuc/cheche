@@ -25,7 +25,7 @@ public class UserFacilityReportController {
             @RequestParam ReportCategory category,
             @RequestParam String locationDescription,
             @RequestParam String comment,
-            @RequestPart MultipartFile photo) {
+            @RequestPart("photo") MultipartFile photo) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(userId, regionCode,
                 facilityId, category, locationDescription, comment, photo));
     }

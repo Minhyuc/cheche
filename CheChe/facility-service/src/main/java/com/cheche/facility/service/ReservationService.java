@@ -14,7 +14,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ReservationService {
-    private static final int PRICE_PER_PERSON = 5000;
     private static final LocalTime OPEN_TIME = LocalTime.of(6, 0);
     private static final LocalTime LAST_START_TIME = LocalTime.of(21, 0);
     private static final int RESERVATION_DAYS_LIMIT = 90;
@@ -51,7 +50,7 @@ public class ReservationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "선택한 시간의 잔여 인원은 " + Math.max(0, capacity - reserved) + "명입니다.");
         }
-        int price = facility.getUsageFee() == null ? PRICE_PER_PERSON : facility.getUsageFee();
+        int price = resolvedPrice(facility);
         Reservation reservation = new Reservation(userId, facility, request.reservationDate(),
                 request.startTime(), endTime, request.participantCount(), price);
         return ReservationResponse.from(reservationRepository.save(reservation));
@@ -128,7 +127,7 @@ public class ReservationService {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalTime opening = optionOpeningTime(facility, date);
         LocalTime lastStart = optionClosingTime(facility, date).minusHours(1);
-        int price = facility.getUsageFee() == null ? PRICE_PER_PERSON : facility.getUsageFee();
+        int price = FacilityPricingPolicy.resolve(facility);
         int capacity = capacity(facility);
         List<ReservationTimeSlot> slots = java.util.stream.IntStream.rangeClosed(opening.getHour(), lastStart.getHour())
                 .mapToObj(hour -> LocalTime.of(hour, 0))
@@ -154,7 +153,7 @@ public class ReservationService {
         Facility facility = facilityRepository.findById(facilityId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "체육시설을 찾을 수 없습니다."));
         verifyFacility(facility, regionCode);
-        int price = facility.getUsageFee() == null ? PRICE_PER_PERSON : facility.getUsageFee();
+        int price = FacilityPricingPolicy.resolve(facility);
         boolean external = facility.getSourceUrl() != null && !facility.getSourceUrl().isBlank();
         return new ReservationCheckoutResponse(facilityId, facility.getName(), price,
                 external ? "CHECHE_OR_EXTERNAL" : "CHECHE", external, facility.getSourceUrl(),
@@ -173,6 +172,10 @@ public class ReservationService {
 
     private int capacity(Facility facility) {
         return facility.getCapacity() == null || facility.getCapacity() < 1 ? 20 : facility.getCapacity();
+    }
+
+    private int resolvedPrice(Facility facility) {
+        return FacilityPricingPolicy.resolve(facility);
     }
 
     private int reservedParticipants(List<Reservation> reservations, LocalTime start) {

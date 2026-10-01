@@ -42,7 +42,7 @@ public class Reservation {
     @Column(nullable = false)
     private int participantCount;
 
-    @Column(nullable = false, columnDefinition = "integer default 5000")
+    @Column(nullable = false)
     private int pricePerPerson;
 
     @Column(nullable = false, columnDefinition = "integer default 0")
@@ -58,11 +58,6 @@ public class Reservation {
     private LocalDateTime cancelledAt;
 
     protected Reservation() {}
-
-    public Reservation(Long userId, Facility facility, LocalDate reservationDate,
-                       LocalTime startTime, LocalTime endTime, int participantCount) {
-        this(userId, facility, reservationDate, startTime, endTime, participantCount, 5000);
-    }
 
     public Reservation(Long userId, Facility facility, LocalDate reservationDate,
                        LocalTime startTime, LocalTime endTime, int participantCount, int pricePerPerson) {
