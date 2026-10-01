@@ -6,6 +6,8 @@ spring:
     name: cheche-gateway
   cloud:
     gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin, RETAIN_FIRST
       routes:
         - id: login-service
           uri: ${LOGIN_SERVICE_URI:http://localhost:8081}

@@ -58,6 +58,9 @@ Gateway는 클라이언트가 임의로 보낸 `X-User-*` 헤더를 항상 제�
 - `POST /api/facilities/public-data/sync` 국민체육진흥공단 시설정보를 서울 지역 관리자 DB에 동기화
 - `POST /api/inspections` 사진 기반 점검 기록 생성
 - `PATCH /api/inspections/{id}/action` 조치 상태 갱신
+- `PATCH /api/inspections/{id}/confirmation` AI 결함 분석 수정 및 최종 확정
+- `GET /api/inspections/super/regions/safety` 슈퍼관리자 지역별 안전 점수
+- `GET /api/inspections/super/recurring-defects` 슈퍼관리자 반복 결함 집계
 - `GET /api/inspections/facilities/{facilityId}/history` 시설 안전 이력
 - `GET /api/inspections/open` 미조치 목록
 - `GET /api/inspections/dashboard` 점검 현황 집계

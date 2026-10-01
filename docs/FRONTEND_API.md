@@ -382,6 +382,9 @@ Authorization: Bearer eyJ...
 | GET | `/api/inspections/open` | 관리자 | 미조치 목록 |
 | GET | `/api/inspections/dashboard` | 관리자 | 점검 집계 |
 | PATCH | `/api/inspections/{id}/action` | 관리자 | 조치 상태 변경 |
+| PATCH | `/api/inspections/{id}/confirmation` | 관리자 | AI 분석 수정 및 최종 확정 |
+| GET | `/api/inspections/super/regions/safety` | 슈퍼관리자 | 지역별 안전 점수 집계 |
+| GET | `/api/inspections/super/recurring-defects?minimumOccurrences=2` | 슈퍼관리자 | 시설·결함 유형별 반복 결함 집계 |
 | GET | `/api/inspections/{id}/report` | 관리자 | 텍스트 보고서 다운로드 |
 | GET | `/api/inspections/public/facilities/{facilityId}/status` | 공개 | 이용자 공개용 조치 현황 |
 
@@ -460,6 +463,93 @@ const photoSrc = new URL(inspection.photoUrl, API_BASE_URL).toString();
 }
 ```
 
+결함 분석 최종 확정 요청 예시:
+
+```json
+{
+  "defectType": "CRACK",
+  "severity": "HIGH",
+  "locationDescription": "배드민턴장 A 서쪽 벽면",
+  "detail": "균열 길이 32cm 확인",
+  "actionRequired": true,
+  "actionDueDate": "2026-10-15"
+}
+```
+
+`actionRequired`가 `true`이면 오늘 이후의 `actionDueDate`가 필수이며 상태가 `ACTION_SCHEDULED`로 바뀝니다. `false`이면 조치 불필요 확정으로 보고 `RESOLVED`가 됩니다. 지역 안전 점수는 미해결 결함마다 `LOW 2`, `MEDIUM 5`, `HIGH 10`, `CRITICAL 20`점을 차감하며 최저 점수는 0점입니다.
+
+프론트 호출 예시:
+
+```ts
+const confirmed = await adminApi<Inspection>(
+  `/api/inspections/${inspectionId}/confirmation`,
+  accessToken,
+  {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      defectType: 'CRACK',
+      severity: 'HIGH',
+      locationDescription: '배드민턴장 A 서쪽 벽면',
+      detail: '균열 길이 32cm 확인',
+      actionRequired: true,
+      actionDueDate: '2026-10-15',
+    }),
+  },
+);
+```
+
+확정 응답에는 다음 필드가 추가됩니다.
+
+```json
+{
+  "confirmed": true,
+  "confirmedAt": "2026-10-01T14:20:00",
+  "confirmedByUserId": 7,
+  "confirmedDetail": "균열 길이 32cm 확인",
+  "actionRequired": true,
+  "actionDueDate": "2026-10-15",
+  "actionStatus": "ACTION_SCHEDULED"
+}
+```
+
+슈퍼관리자 지역별 안전 점수 응답 예시:
+
+```json
+[
+  {
+    "regionCode": "11680",
+    "regionName": "서울특별시 강남구",
+    "facilityCount": 24,
+    "totalInspections": 31,
+    "openInspections": 6,
+    "resolvedInspections": 25,
+    "highRiskOpenInspections": 2,
+    "safetyScore": 72
+  }
+]
+```
+
+반복 결함 응답은 같은 시설의 같은 `defectType`을 묶으며 발생 횟수 내림차순으로 정렬됩니다.
+
+```json
+[
+  {
+    "facilityId": 12,
+    "facilityName": "강남구민체육관",
+    "regionCode": "11680",
+    "regionName": "서울특별시 강남구",
+    "defectType": "CRACK",
+    "occurrenceCount": 4,
+    "openCount": 2,
+    "highestSeverity": "HIGH",
+    "lastDetectedAt": "2026-09-28T10:30:00"
+  }
+]
+```
+
+`minimumOccurrences`는 `2~100` 범위이며 생략하면 `2`입니다. 두 집계 API는 `SUPER_USER`만 호출할 수 있고 지역 관리자가 호출하면 `403`을 반환합니다.
+
 ## 6. 권장 프론트엔드 타입
 
 ```ts
@@ -532,6 +622,12 @@ export interface Inspection {
   reportSummary: string;
   actionStatus: ActionStatus;
   actionNote: string | null;
+  confirmed: boolean;
+  confirmedAt: string | null;
+  confirmedByUserId: number | null;
+  confirmedDetail: string | null;
+  actionRequired: boolean | null;
+  actionDueDate: string | null;
   resolvedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -541,6 +637,29 @@ export interface InspectionDashboard {
   totalInspections: number;
   unresolvedInspections: number;
   resolvedInspections: number;
+}
+
+export interface RegionalSafetySummary {
+  regionCode: string;
+  regionName: string;
+  facilityCount: number;
+  totalInspections: number;
+  openInspections: number;
+  resolvedInspections: number;
+  highRiskOpenInspections: number;
+  safetyScore: number;
+}
+
+export interface RecurringDefect {
+  facilityId: number;
+  facilityName: string;
+  regionCode: string;
+  regionName: string;
+  defectType: DefectType;
+  occurrenceCount: number;
+  openCount: number;
+  highestSeverity: Severity;
+  lastDetectedAt: string | null;
 }
 ```
 

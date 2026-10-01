@@ -72,6 +72,29 @@ public class InspectionController {
         return ResponseEntity.ok(service.updateAction(id, request, role, regionCode));
     }
 
+    @PatchMapping("/{id}/confirmation")
+    public ResponseEntity<InspectionResponse> confirm(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestHeader("X-User-Role") AdminRole role,
+            @RequestHeader(value = "X-User-Region", required = false) String regionCode,
+            @Valid @RequestBody DefectConfirmationRequest request) {
+        return ResponseEntity.ok(service.confirm(id, request, userId, role, regionCode));
+    }
+
+    @GetMapping("/super/regions/safety")
+    public ResponseEntity<List<RegionalSafetySummaryResponse>> regionalSafety(
+            @RequestHeader("X-User-Role") AdminRole role) {
+        return ResponseEntity.ok(service.regionalSafety(role));
+    }
+
+    @GetMapping("/super/recurring-defects")
+    public ResponseEntity<List<RecurringDefectResponse>> recurringDefects(
+            @RequestHeader("X-User-Role") AdminRole role,
+            @RequestParam(defaultValue = "2") int minimumOccurrences) {
+        return ResponseEntity.ok(service.recurringDefects(role, minimumOccurrences));
+    }
+
     @GetMapping(value = "/{id}/report", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> report(
             @PathVariable Long id,

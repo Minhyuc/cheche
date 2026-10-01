@@ -47,6 +47,10 @@ public class AuthenticationBridgeFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getPath().value();
         ServerWebExchange sanitized = removeUntrustedIdentityHeaders(exchange);
+        // Browser preflight requests do not carry the application JWT.
+        if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS) {
+            return chain.filter(sanitized);
+        }
         if (isPublic(path)) return chain.filter(sanitized);
 
         String authorization = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);

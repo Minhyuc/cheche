@@ -1,6 +1,7 @@
 package com.cheche.inspection.domain;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -55,6 +56,13 @@ public class Inspection {
     private ActionStatus actionStatus = ActionStatus.REPORTED;
     @Column(length = 1200)
     private String actionNote;
+    private Boolean confirmed = false;
+    private LocalDateTime confirmedAt;
+    private Long confirmedByUserId;
+    @Column(length = 1200)
+    private String confirmedDetail;
+    private Boolean actionRequired;
+    private LocalDate actionDueDate;
     private LocalDateTime resolvedAt;
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -91,6 +99,22 @@ public class Inspection {
         this.resolvedAt = status == ActionStatus.RESOLVED ? LocalDateTime.now() : null;
     }
 
+    public void confirm(DefectType defectType, Severity severity, String locationDescription,
+                        String confirmedDetail, boolean actionRequired, LocalDate actionDueDate,
+                        Long confirmedByUserId) {
+        this.defectType = defectType;
+        this.severity = severity;
+        this.locationDescription = locationDescription;
+        this.confirmedDetail = confirmedDetail;
+        this.actionRequired = actionRequired;
+        this.actionDueDate = actionRequired ? actionDueDate : null;
+        this.confirmed = true;
+        this.confirmedAt = LocalDateTime.now();
+        this.confirmedByUserId = confirmedByUserId;
+        this.actionStatus = actionRequired ? ActionStatus.ACTION_SCHEDULED : ActionStatus.RESOLVED;
+        this.resolvedAt = actionRequired ? null : LocalDateTime.now();
+    }
+
     public Long getId() { return id; }
     public Long getFacilityId() { return facilityId; }
     public String getFacilityName() { return facilityName; }
@@ -108,6 +132,12 @@ public class Inspection {
     public String getReportSummary() { return reportSummary; }
     public ActionStatus getActionStatus() { return actionStatus; }
     public String getActionNote() { return actionNote; }
+    public boolean isConfirmed() { return Boolean.TRUE.equals(confirmed); }
+    public LocalDateTime getConfirmedAt() { return confirmedAt; }
+    public Long getConfirmedByUserId() { return confirmedByUserId; }
+    public String getConfirmedDetail() { return confirmedDetail; }
+    public Boolean getActionRequired() { return actionRequired; }
+    public LocalDate getActionDueDate() { return actionDueDate; }
     public LocalDateTime getResolvedAt() { return resolvedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

@@ -543,6 +543,62 @@ paths:
               schema: {$ref: '#/components/schemas/InspectionResponse'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+  /api/inspections/{id}/confirmation:
+    patch:
+      tags: [Inspections]
+      summary: AI 결함 분석 결과 수정 및 최종 확정
+      operationId: confirmInspectionAnalysis
+      security: [{bearerAuth: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DefectConfirmationRequest'}
+      responses:
+        '200':
+          description: 확정 성공
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InspectionResponse'}
+        '400': {description: 조치 기한 또는 입력값 오류}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/inspections/super/regions/safety:
+    get:
+      tags: [Inspections]
+      summary: 슈퍼관리자용 지역별 안전 점수 집계
+      operationId: getRegionalSafetySummaries
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: 지역별 집계
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/RegionalSafetySummaryResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/inspections/super/recurring-defects:
+    get:
+      tags: [Inspections]
+      summary: 슈퍼관리자용 시설별 반복 결함 집계
+      operationId: getRecurringDefects
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: minimumOccurrences
+          in: query
+          schema: {type: integer, default: 2, minimum: 2, maximum: 100}
+      responses:
+        '200':
+          description: 반복 결함 집계
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/RecurringDefectResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/inspections/{id}/report:
     get:
       tags: [Inspections]
@@ -756,6 +812,12 @@ components:
         reportSummary: {type: string}
         actionStatus: {$ref: '#/components/schemas/ActionStatus'}
         actionNote: {type: string, nullable: true}
+        confirmed: {type: boolean}
+        confirmedAt: {type: string, format: date-time, nullable: true}
+        confirmedByUserId: {type: integer, format: int64, nullable: true}
+        confirmedDetail: {type: string, nullable: true}
+        actionRequired: {type: boolean, nullable: true}
+        actionDueDate: {type: string, format: date, nullable: true}
         resolvedAt: {type: string, format: date-time, nullable: true}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
@@ -778,6 +840,39 @@ components:
       properties:
         status: {$ref: '#/components/schemas/ActionStatus'}
         actionNote: {type: string, nullable: true}
+    DefectConfirmationRequest:
+      type: object
+      required: [defectType, severity, locationDescription, actionRequired]
+      properties:
+        defectType: {$ref: '#/components/schemas/DefectType'}
+        severity: {$ref: '#/components/schemas/Severity'}
+        locationDescription: {type: string, maxLength: 240}
+        detail: {type: string, maxLength: 1200, nullable: true}
+        actionRequired: {type: boolean}
+        actionDueDate: {type: string, format: date, nullable: true}
+    RegionalSafetySummaryResponse:
+      type: object
+      properties:
+        regionCode: {type: string}
+        regionName: {type: string}
+        facilityCount: {type: integer, format: int64}
+        totalInspections: {type: integer, format: int64}
+        openInspections: {type: integer, format: int64}
+        resolvedInspections: {type: integer, format: int64}
+        highRiskOpenInspections: {type: integer, format: int64}
+        safetyScore: {type: integer, minimum: 0, maximum: 100}
+    RecurringDefectResponse:
+      type: object
+      properties:
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        regionCode: {type: string}
+        regionName: {type: string}
+        defectType: {$ref: '#/components/schemas/DefectType'}
+        occurrenceCount: {type: integer, format: int64}
+        openCount: {type: integer, format: int64}
+        highestSeverity: {$ref: '#/components/schemas/Severity'}
+        lastDetectedAt: {type: string, format: date-time, nullable: true}
     DashboardResponse:
       type: object
       properties:
