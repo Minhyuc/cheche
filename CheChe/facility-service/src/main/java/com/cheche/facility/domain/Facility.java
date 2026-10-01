@@ -52,6 +52,41 @@ public class Facility {
     @Column(length = 500)
     private String sourceUrl;
 
+    @Column(length = 1000)
+    private String imageUrl;
+
+    @Column(length = 5)
+    private String weekdayOpeningTime;
+
+    @Column(length = 5)
+    private String weekdayClosingTime;
+
+    @Column(length = 5)
+    private String weekendOpeningTime;
+
+    @Column(length = 5)
+    private String weekendClosingTime;
+
+    private Integer usageFee;
+
+    @Column(length = 500)
+    private String feeInfo;
+
+    private Integer capacity;
+
+    @Column(length = 1000)
+    private String amenities;
+
+    @Column(length = 240)
+    private String applicationMethod;
+
+    @Column(length = 240)
+    private String closedDays;
+
+    private Double latitude;
+
+    private Double longitude;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -107,6 +142,35 @@ public class Facility {
         this.sourceUrl = sourceUrl;
     }
 
+    public void enrichPublicData(String imageUrl, String weekdayOpeningTime, String weekdayClosingTime,
+                                 String weekendOpeningTime, String weekendClosingTime, Integer usageFee,
+                                 String feeInfo, Integer capacity, String amenities, String applicationMethod,
+                                 String closedDays, Double latitude, Double longitude, String sourceUrl) {
+        this.imageUrl = blankToNull(imageUrl);
+        this.weekdayOpeningTime = normalizeTime(weekdayOpeningTime);
+        this.weekdayClosingTime = normalizeTime(weekdayClosingTime);
+        this.weekendOpeningTime = normalizeTime(weekendOpeningTime);
+        this.weekendClosingTime = normalizeTime(weekendClosingTime);
+        this.usageFee = usageFee;
+        this.feeInfo = blankToNull(feeInfo);
+        this.capacity = capacity;
+        this.amenities = blankToNull(amenities);
+        this.applicationMethod = blankToNull(applicationMethod);
+        this.closedDays = blankToNull(closedDays);
+        this.latitude = latitude;
+        this.longitude = longitude;
+        if (sourceUrl != null && !sourceUrl.isBlank()) this.sourceUrl = sourceUrl.trim();
+    }
+
+    private String normalizeTime(String value) {
+        String time = blankToNull(value);
+        return time != null && time.matches("\\d{2}:\\d{2}") ? time : null;
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getType() { return type; }
@@ -120,5 +184,18 @@ public class Facility {
     public String getSource() { return source; }
     public String getExternalId() { return externalId; }
     public String getSourceUrl() { return sourceUrl; }
+    public String getImageUrl() { return imageUrl; }
+    public String getWeekdayOpeningTime() { return weekdayOpeningTime; }
+    public String getWeekdayClosingTime() { return weekdayClosingTime; }
+    public String getWeekendOpeningTime() { return weekendOpeningTime; }
+    public String getWeekendClosingTime() { return weekendClosingTime; }
+    public Integer getUsageFee() { return usageFee; }
+    public String getFeeInfo() { return feeInfo; }
+    public Integer getCapacity() { return capacity; }
+    public String getAmenities() { return amenities; }
+    public String getApplicationMethod() { return applicationMethod; }
+    public String getClosedDays() { return closedDays; }
+    public Double getLatitude() { return latitude; }
+    public Double getLongitude() { return longitude; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">체육시설 기본 이미지</title>
+  <desc id="desc">푸른 하늘 아래 공공 체육시설을 표현한 기본 이미지</desc>
+  <rect width="1200" height="720" fill="#dff1ff"/>
+  <circle cx="1000" cy="120" r="62" fill="#ffe888"/>
+  <path d="M0 585h1200v135H0z" fill="#6fba78"/>
+  <path d="M210 560V260h780v300" fill="#fff"/>
+  <path d="M165 275 600 105l435 170z" fill="#2683dd"/>
+  <path d="M310 335h150v160H310zm215 0h150v160H525zm215 0h150v160H740z" fill="#b9ddf8"/>
+  <path d="M165 560h870" stroke="#1767ac" stroke-width="28" stroke-linecap="round"/>
+</svg>

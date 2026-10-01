@@ -6,6 +6,8 @@ public record UserHomeResponse(
         String title,
         String description,
         String regionCode,
+        String aiExamplePrompt,
+        List<String> quickSports,
         List<UserFacilityCard> recommendations,
         List<UserFacilityCard> kspoFacilities
 ) {
