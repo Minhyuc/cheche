@@ -204,7 +204,21 @@ paths:
         - {name: facilityId, in: query, required: true, schema: {type: integer, format: int64}}
         - {name: date, in: query, required: false, schema: {type: string, format: date}}
       responses:
-        '200': {description: 날짜 5일과 운영시간별 요금·수용인원·잔여인원 조회 성공}
+        '200':
+          description: 날짜 5일과 운영시간별 요금·수용인원·잔여인원 조회 성공
+          content: {application/json: {schema: {$ref: '#/components/schemas/ReservationOptionsResponse'}}}
+  /api/user/reservations/availability:
+    get:
+      tags: [User Reservations]
+      summary: 선택 날짜의 예약 가능한 시작 시간 조회
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: facilityId, in: query, required: true, schema: {type: integer, format: int64}}
+        - {name: date, in: query, required: true, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: 예약 가능한 정각 시작 시간
+          content: {application/json: {schema: {$ref: '#/components/schemas/AvailabilityResponse'}}}
   /api/user/reservations/checkout:
     get:
       tags: [User Reservations]
@@ -213,20 +227,47 @@ paths:
       parameters:
         - {name: facilityId, in: query, required: true, schema: {type: integer, format: int64}}
       responses:
-        '200': {description: 예약 방식과 제공기관 예약 주소 및 결제 지원 상태}
+        '200':
+          description: 예약 방식과 제공기관 예약 주소 및 결제 지원 상태
+          content: {application/json: {schema: {$ref: '#/components/schemas/ReservationCheckoutResponse'}}}
   /api/user/reservations:
     get:
       tags: [User Reservations]
       summary: 내 예약 목록
       security: [{bearerAuth: []}]
       responses:
-        '200': {description: 조회 성공}
+        '200':
+          description: 조회 성공
+          content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ReservationResponse'}}}}
     post:
       tags: [User Reservations]
       summary: 시설 예약 생성
       security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ReservationCreateRequest'}}}
       responses:
-        '201': {description: 예약 확정}
+        '201':
+          description: 예약 확정
+          content: {application/json: {schema: {$ref: '#/components/schemas/ReservationResponse'}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/user/reservations/{id}:
+    get:
+      tags: [User Reservations]
+      summary: 내 예약 상세
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: 조회 성공, content: {application/json: {schema: {$ref: '#/components/schemas/ReservationResponse'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/user/reservations/{id}/cancel:
+    patch:
+      tags: [User Reservations]
+      summary: 시작 전 예약 취소
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: 취소 성공, content: {application/json: {schema: {$ref: '#/components/schemas/ReservationResponse'}}}}
         '409': {$ref: '#/components/responses/Conflict'}
   /api/user/reports:
     get:
@@ -741,6 +782,83 @@ components:
         regionName: {type: string, nullable: true}
         initialSetupRequired: {type: boolean}
         createdAt: {type: string, format: date-time, nullable: true}
+    ReservationDateOption:
+      type: object
+      required: [date, dayOfWeek, dayLabel, available]
+      properties:
+        date: {type: string, format: date}
+        dayOfWeek: {type: string, example: 금}
+        dayLabel: {type: string, example: '02'}
+        available: {type: boolean}
+    ReservationTimeSlot:
+      type: object
+      required: [startTime, endTime, status, statusLabel, pricePerPerson, capacity, reservedParticipants, remainingCapacity]
+      properties:
+        startTime: {type: string, format: time, example: '19:00:00'}
+        endTime: {type: string, format: time, example: '20:00:00'}
+        status: {type: string, enum: [AVAILABLE, RESERVED, CLOSED]}
+        statusLabel: {type: string, example: 잔여 4명}
+        pricePerPerson: {type: integer, example: 5000}
+        capacity: {type: integer, example: 10}
+        reservedParticipants: {type: integer, example: 6}
+        remainingCapacity: {type: integer, example: 4}
+    ReservationOptionsResponse:
+      type: object
+      required: [facilityId, facilityName, facilityType, selectedDate, pricePerPerson, minParticipants, maxParticipants, dates, timeSlots]
+      properties:
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        facilityType: {type: string}
+        selectedDate: {type: string, format: date}
+        pricePerPerson: {type: integer}
+        minParticipants: {type: integer}
+        maxParticipants: {type: integer}
+        dates: {type: array, items: {$ref: '#/components/schemas/ReservationDateOption'}}
+        timeSlots: {type: array, items: {$ref: '#/components/schemas/ReservationTimeSlot'}}
+    AvailabilityResponse:
+      type: object
+      required: [facilityId, reservationDate, availableStartTimes]
+      properties:
+        facilityId: {type: integer, format: int64}
+        reservationDate: {type: string, format: date}
+        availableStartTimes: {type: array, items: {type: string, format: time}}
+    ReservationCreateRequest:
+      type: object
+      required: [facilityId, reservationDate, startTime, participantCount]
+      properties:
+        facilityId: {type: integer, format: int64}
+        reservationDate: {type: string, format: date}
+        startTime: {type: string, format: time}
+        participantCount: {type: integer, minimum: 1, maximum: 20}
+    ReservationResponse:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        regionName: {type: string}
+        reservationDate: {type: string, format: date}
+        startTime: {type: string, format: time}
+        endTime: {type: string, format: time}
+        participantCount: {type: integer}
+        pricePerPerson: {type: integer}
+        totalFee: {type: integer}
+        status: {type: string, enum: [CONFIRMED, CANCELLED, COMPLETED]}
+        statusLabel: {type: string}
+        createdAt: {type: string, format: date-time}
+        cancelledAt: {type: string, format: date-time, nullable: true}
+    ReservationCheckoutResponse:
+      type: object
+      properties:
+        facilityId: {type: integer, format: int64}
+        facilityName: {type: string}
+        pricePerPerson: {type: integer}
+        reservationMode: {type: string}
+        externalReservationAvailable: {type: boolean}
+        externalReservationUrl: {type: string, nullable: true}
+        paymentRequired: {type: boolean}
+        onlinePaymentAvailable: {type: boolean}
+        message: {type: string}
     FacilityRequest:
       type: object
       required: [name, type, regionCode, regionName, address]

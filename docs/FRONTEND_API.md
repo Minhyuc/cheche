@@ -219,6 +219,66 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 각 시간 항목에는 `capacity`, `reservedParticipants`, `remainingCapacity`가 포함됩니다.
 예약 생성 응답에는 `pricePerPerson`과 `totalFee`가 포함됩니다.
 
+예약 옵션 응답의 정확한 필드명:
+
+| 위치 | 필드명 | 타입 | 설명 |
+|---|---|---|---|
+| 최상위 | `facilityId` | `number` | 시설 ID |
+| 최상위 | `facilityName` | `string` | 시설명 |
+| 최상위 | `facilityType` | `string` | 시설 종목·유형 |
+| 최상위 | `selectedDate` | `YYYY-MM-DD` | 현재 선택 날짜 |
+| 최상위 | `pricePerPerson` | `number` | 1인 요금 |
+| 최상위 | `minParticipants` | `number` | 최소 이용 인원 |
+| 최상위 | `maxParticipants` | `number` | 최대 이용 인원 |
+| 최상위 | `dates` | `ReservationDateOption[]` | 날짜 선택 목록 |
+| 최상위 | `timeSlots` | `ReservationTimeSlot[]` | 선택 날짜의 시간 목록 |
+| `dates[]` | `date` | `YYYY-MM-DD` | 날짜 값 |
+| `dates[]` | `dayOfWeek` | `string` | 요일 한글명 |
+| `dates[]` | `dayLabel` | `string` | 화면 표시용 날짜 라벨 |
+| `dates[]` | `available` | `boolean` | 예약 가능한 시간이 하나 이상 있는지 여부 |
+| `timeSlots[]` | `startTime` | `HH:mm:ss` | 시작 시간 |
+| `timeSlots[]` | `endTime` | `HH:mm:ss` | 종료 시간 |
+| `timeSlots[]` | `status` | `string` | `AVAILABLE`, `RESERVED`, `CLOSED` |
+| `timeSlots[]` | `statusLabel` | `string` | 화면 표시용 상태 문구 |
+| `timeSlots[]` | `pricePerPerson` | `number` | 해당 시간대 1인 요금 |
+| `timeSlots[]` | `capacity` | `number` | 전체 수용 인원 |
+| `timeSlots[]` | `reservedParticipants` | `number` | 예약 완료 인원 |
+| `timeSlots[]` | `remainingCapacity` | `number` | 현재 예약 가능 인원 |
+
+```json
+{
+  "facilityId": 1,
+  "facilityName": "올림픽공원 체육센터",
+  "facilityType": "배드민턴장",
+  "selectedDate": "2026-10-02",
+  "pricePerPerson": 5000,
+  "minParticipants": 1,
+  "maxParticipants": 20,
+  "dates": [
+    {
+      "date": "2026-10-02",
+      "dayOfWeek": "금",
+      "dayLabel": "02",
+      "available": true
+    }
+  ],
+  "timeSlots": [
+    {
+      "startTime": "19:00:00",
+      "endTime": "20:00:00",
+      "status": "AVAILABLE",
+      "statusLabel": "잔여 4명",
+      "pricePerPerson": 5000,
+      "capacity": 10,
+      "reservedParticipants": 6,
+      "remainingCapacity": 4
+    }
+  ]
+}
+```
+
+간단한 시간 조회 API인 `availability`의 필드명은 `facilityId`, `reservationDate`, `availableStartTimes`입니다.
+
 `checkout`은 공공데이터에 제공기관 홈페이지가 있으면 `externalReservationUrl`을 반환합니다.
 실결제는 PG사 상점키가 설정되기 전까지 `onlinePaymentAvailable=false`입니다.
 
@@ -559,6 +619,8 @@ export type FacilityStatus = 'OPERATING' | 'UNDER_INSPECTION' | 'CLOSED';
 export type DefectType = 'CRACK' | 'CORROSION' | 'DEFORMATION' | 'SURFACE_DAMAGE' | 'WATER_LEAK' | 'OTHER';
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type ActionStatus = 'REPORTED' | 'REVIEWING' | 'ACTION_SCHEDULED' | 'RESOLVED';
+export type ReservationStatus = 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+export type ReservationTimeSlotStatus = 'AVAILABLE' | 'RESERVED' | 'CLOSED';
 
 export interface AdminLoginResponse {
   userId: number;
@@ -602,6 +664,59 @@ export interface PublicFacilitySyncResult {
   matchedCount: number;
   createdCount: number;
   updatedCount: number;
+}
+
+export interface ReservationDateOption {
+  date: string;
+  dayOfWeek: string;
+  dayLabel: string;
+  available: boolean;
+}
+
+export interface ReservationTimeSlot {
+  startTime: string;
+  endTime: string;
+  status: ReservationTimeSlotStatus;
+  statusLabel: string;
+  pricePerPerson: number;
+  capacity: number;
+  reservedParticipants: number;
+  remainingCapacity: number;
+}
+
+export interface ReservationOptions {
+  facilityId: number;
+  facilityName: string;
+  facilityType: string;
+  selectedDate: string;
+  pricePerPerson: number;
+  minParticipants: number;
+  maxParticipants: number;
+  dates: ReservationDateOption[];
+  timeSlots: ReservationTimeSlot[];
+}
+
+export interface ReservationAvailability {
+  facilityId: number;
+  reservationDate: string;
+  availableStartTimes: string[];
+}
+
+export interface Reservation {
+  id: number;
+  facilityId: number;
+  facilityName: string;
+  regionName: string;
+  reservationDate: string;
+  startTime: string;
+  endTime: string;
+  participantCount: number;
+  pricePerPerson: number;
+  totalFee: number;
+  status: ReservationStatus;
+  statusLabel: string;
+  createdAt: string;
+  cancelledAt: string | null;
 }
 
 export interface Inspection {

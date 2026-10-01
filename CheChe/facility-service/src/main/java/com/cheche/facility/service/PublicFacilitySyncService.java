@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +49,7 @@ public class PublicFacilitySyncService {
     private final KspoFacilityClient client;
     private final PublicOpenFacilityClient publicOpenFacilityClient;
 
+    @Autowired
     public PublicFacilitySyncService(FacilityRepository repository, KspoFacilityClient client,
                                      PublicOpenFacilityClient publicOpenFacilityClient) {
         this.repository = repository;
