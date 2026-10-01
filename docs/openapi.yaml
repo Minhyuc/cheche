@@ -10,6 +10,7 @@ tags:
   - name: Auth
   - name: Users
   - name: User Facilities
+  - name: User Reservations
   - name: User Reports
   - name: Admins
   - name: Facilities
@@ -56,7 +57,7 @@ paths:
     post:
       tags: [Auth]
       summary: 사용자 로그인
-      description: 인증과 JWT 발급만 수행하며 사용자 기능은 제공하지 않습니다.
+      description: 사용자 인증과 JWT 발급 후 지역 기반 시설 탐색·예약 기능을 제공합니다.
       operationId: loginUser
       requestBody:
         required: true
@@ -125,6 +126,9 @@ paths:
       tags: [User Facilities]
       summary: 내 지역 추천 시설
       security: [{bearerAuth: []}]
+      parameters:
+        - {name: latitude, in: query, required: false, schema: {type: number, format: double}}
+        - {name: longitude, in: query, required: false, schema: {type: number, format: double}}
       responses:
         '200': {description: 조회 성공}
         '428': {$ref: '#/components/responses/SetupRequired'}
@@ -133,6 +137,9 @@ paths:
       tags: [User Facilities]
       summary: 자연어 시설 검색
       security: [{bearerAuth: []}]
+      parameters:
+        - {name: latitude, in: query, required: false, schema: {type: number, format: double}}
+        - {name: longitude, in: query, required: false, schema: {type: number, format: double}}
       requestBody:
         required: true
         content:
@@ -148,7 +155,10 @@ paths:
       tags: [User Facilities]
       summary: 사용자용 시설 상세
       security: [{bearerAuth: []}]
-      parameters: [{$ref: '#/components/parameters/Id'}]
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {name: latitude, in: query, required: false, schema: {type: number, format: double}}
+        - {name: longitude, in: query, required: false, schema: {type: number, format: double}}
       responses:
         '200': {description: 조회 성공}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -160,6 +170,64 @@ paths:
       parameters: [{$ref: '#/components/parameters/Id'}]
       responses:
         '200': {description: 조회 성공}
+  /api/user/facilities/favorites:
+    get:
+      tags: [User Facilities]
+      summary: 내 관심 시설 목록
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: latitude, in: query, required: false, schema: {type: number, format: double}}
+        - {name: longitude, in: query, required: false, schema: {type: number, format: double}}
+      responses:
+        '200': {description: 관심 시설 목록}
+  /api/user/facilities/{id}/favorite:
+    post:
+      tags: [User Facilities]
+      summary: 관심 시설 등록
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: 등록 성공}
+    delete:
+      tags: [User Facilities]
+      summary: 관심 시설 해제
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: 해제 성공}
+  /api/user/reservations/options:
+    get:
+      tags: [User Reservations]
+      summary: Figma 예약 화면용 날짜·시간·요금 선택지
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: facilityId, in: query, required: true, schema: {type: integer, format: int64}}
+        - {name: date, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        '200': {description: 날짜 5일과 운영시간별 요금·수용인원·잔여인원 조회 성공}
+  /api/user/reservations/checkout:
+    get:
+      tags: [User Reservations]
+      summary: 내부 예약 및 제공기관 예약·결제 정보
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: facilityId, in: query, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200': {description: 예약 방식과 제공기관 예약 주소 및 결제 지원 상태}
+  /api/user/reservations:
+    get:
+      tags: [User Reservations]
+      summary: 내 예약 목록
+      security: [{bearerAuth: []}]
+      responses:
+        '200': {description: 조회 성공}
+    post:
+      tags: [User Reservations]
+      summary: 시설 예약 생성
+      security: [{bearerAuth: []}]
+      responses:
+        '201': {description: 예약 확정}
+        '409': {$ref: '#/components/responses/Conflict'}
   /api/user/reports:
     get:
       tags: [User Reports]

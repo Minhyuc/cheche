@@ -15,6 +15,8 @@ public record ReservationResponse(
         LocalTime startTime,
         LocalTime endTime,
         int participantCount,
+        int pricePerPerson,
+        int totalFee,
         ReservationStatus status,
         String statusLabel,
         LocalDateTime createdAt,
@@ -23,7 +25,8 @@ public record ReservationResponse(
     public static ReservationResponse from(Reservation value) {
         return new ReservationResponse(value.getId(), value.getFacilityId(), value.getFacilityName(),
                 value.getRegionName(), value.getReservationDate(), value.getStartTime(), value.getEndTime(),
-                value.getParticipantCount(), value.getStatus(), statusLabel(value.getStatus()),
+                value.getParticipantCount(), value.getPricePerPerson(), value.getTotalFee(),
+                value.getStatus(), statusLabel(value.getStatus()),
                 value.getCreatedAt(), value.getCancelledAt());
     }
 

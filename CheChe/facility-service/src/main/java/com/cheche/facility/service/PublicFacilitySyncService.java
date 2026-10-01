@@ -6,10 +6,16 @@ import com.cheche.facility.domain.FacilityStatus;
 import com.cheche.facility.dto.PublicFacilitySyncResponse;
 import com.cheche.facility.integration.KspoFacilityClient;
 import com.cheche.facility.integration.KspoFacilityItem;
+import com.cheche.facility.integration.PublicOpenFacilityClient;
+import com.cheche.facility.integration.PublicOpenFacilityItem;
 import com.cheche.facility.repository.FacilityRepository;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +25,7 @@ import org.springframework.web.util.HtmlUtils;
 @Service
 public class PublicFacilitySyncService {
     static final String SOURCE = "KSPO_NATIONAL_FACILITY";
+    static final String OPEN_SOURCE = "PUBLIC_OPEN_FACILITY";
     private static final String SEOUL = "서울특별시";
     private static final Map<String, String> SEOUL_DISTRICTS = Map.ofEntries(
             Map.entry("11110", "종로구"), Map.entry("11140", "중구"),
@@ -39,17 +46,30 @@ public class PublicFacilitySyncService {
 
     private final FacilityRepository repository;
     private final KspoFacilityClient client;
+    private final PublicOpenFacilityClient publicOpenFacilityClient;
 
-    public PublicFacilitySyncService(FacilityRepository repository, KspoFacilityClient client) {
+    public PublicFacilitySyncService(FacilityRepository repository, KspoFacilityClient client,
+                                     PublicOpenFacilityClient publicOpenFacilityClient) {
         this.repository = repository;
         this.client = client;
+        this.publicOpenFacilityClient = publicOpenFacilityClient;
+    }
+
+    PublicFacilitySyncService(FacilityRepository repository, KspoFacilityClient client) {
+        this(repository, client, () -> new PublicOpenFacilityClient.FetchResult(0, List.of()));
     }
 
     @Transactional
     public PublicFacilitySyncResponse sync(Long userId, AdminRole role, String adminRegionCode) {
         SyncTarget target = resolveTarget(role, adminRegionCode);
 
-        KspoFacilityClient.FetchResult fetched = client.fetchPublicFacilities(SEOUL, target.district());
+        KspoFacilityClient.FetchResult fetched;
+        try {
+            fetched = client.fetchPublicFacilities(SEOUL, target.district());
+        } catch (ResponseStatusException exception) {
+            if (exception.getStatusCode() != HttpStatus.SERVICE_UNAVAILABLE) throw exception;
+            fetched = new KspoFacilityClient.FetchResult(0, List.of());
+        }
         List<KspoFacilityItem> matches = fetched.items().stream()
                 .filter(item -> isTargetRegion(item, target)).toList();
         Map<String, Facility> existing = new HashMap<>();
@@ -77,8 +97,109 @@ public class PublicFacilitySyncService {
                 updated++;
             }
         }
-        return new PublicFacilitySyncResponse("국민체육진흥공단", target.regionCode(), target.regionName(),
-                fetched.items().size(), matches.size(), created, updated);
+        PublicOpenFacilityClient.FetchResult openData = publicOpenFacilityClient.fetchAll();
+        List<PublicOpenFacilityItem> openMatches = openData.items().stream()
+                .filter(this::isSportsFacility)
+                .filter(item -> districtCode(item) != null)
+                .filter(item -> target.district() == null
+                        || target.regionCode().equals(districtCode(item)))
+                .toList();
+
+        List<Facility> allInTarget = target.district() == null
+                ? repository.findAll()
+                : repository.findAllByRegionCodeOrderByNameAsc(target.regionCode());
+        Map<String, Facility> byIdentity = new HashMap<>();
+        Map<String, Facility> byName = new HashMap<>();
+        allInTarget.forEach(facility -> {
+            byIdentity.put(identity(facility.getName(), facility.getAddress()), facility);
+            byName.putIfAbsent(normalize(facility.getName()), facility);
+        });
+
+        for (PublicOpenFacilityItem item : openMatches) {
+            String regionCode = districtCode(item);
+            String address = publicAddress(item);
+            String name = clean(item.name());
+            Facility facility = byIdentity.get(identity(name, address));
+            if (facility == null) facility = byName.get(normalize(name));
+            if (facility == null) {
+                String externalId = UUID.nameUUIDFromBytes((name + '|' + address + '|'
+                        + clean(item.institutionName())).getBytes(StandardCharsets.UTF_8)).toString();
+                facility = Facility.fromPublicData(name, publicFacilityType(item), regionCode,
+                        SEOUL + " " + SEOUL_DISTRICTS.get(regionCode), address, clean(item.phone()), userId,
+                        FacilityStatus.OPERATING, OPEN_SOURCE, externalId, clean(item.homepageUrl()));
+                enrich(facility, item);
+                repository.save(facility);
+                byIdentity.put(identity(name, address), facility);
+                byName.putIfAbsent(normalize(name), facility);
+                created++;
+            } else {
+                facility.updatePublicData(name, publicFacilityType(item), address, clean(item.phone()),
+                        clean(item.homepageUrl()).isBlank() ? facility.getSourceUrl() : clean(item.homepageUrl()));
+                enrich(facility, item);
+                updated++;
+            }
+        }
+        return new PublicFacilitySyncResponse("국민체육진흥공단·공공데이터포털", target.regionCode(), target.regionName(),
+                fetched.items().size() + openData.totalCount(), matches.size() + openMatches.size(), created, updated);
+    }
+
+    private void enrich(Facility facility, PublicOpenFacilityItem item) {
+        facility.enrichPublicData(clean(item.imageUrl()), clean(item.weekdayOpeningTime()),
+                clean(item.weekdayClosingTime()), clean(item.weekendOpeningTime()),
+                clean(item.weekendClosingTime()), fee(item), clean(item.fee()), integer(item.capacity()),
+                clean(item.amenities()), clean(item.applicationMethod()), clean(item.closedDays()),
+                decimal(item.latitude()), decimal(item.longitude()), clean(item.homepageUrl()));
+    }
+
+    private boolean isSportsFacility(PublicOpenFacilityItem item) {
+        String text = normalize(clean(item.facilityType()) + " " + clean(item.name()) + " " + clean(item.locationName()));
+        return List.of("체육", "운동", "축구", "풋살", "농구", "배드민턴", "테니스", "수영",
+                "골프", "탁구", "헬스", "야구", "족구", "체력").stream().anyMatch(text::contains);
+    }
+
+    private String districtCode(PublicOpenFacilityItem item) {
+        String address = publicAddress(item);
+        return DISTRICT_CODES.entrySet().stream()
+                .filter(entry -> address.contains(entry.getKey()))
+                .map(Map.Entry::getValue).findFirst().orElse(null);
+    }
+
+    private String publicAddress(PublicOpenFacilityItem item) {
+        String road = clean(item.roadAddress());
+        return road.isBlank() ? clean(item.lotAddress()) : road;
+    }
+
+    private String publicFacilityType(PublicOpenFacilityItem item) {
+        String type = clean(item.facilityType());
+        return type.isBlank() ? "공공체육시설" : type;
+    }
+
+    private Integer fee(PublicOpenFacilityItem item) {
+        if (clean(item.paid()).contains("무료")) return 0;
+        Matcher matcher = Pattern.compile("[0-9][0-9,]*").matcher(clean(item.fee()));
+        if (!matcher.find()) return null;
+        try { return Integer.parseInt(matcher.group().replace(",", "")); }
+        catch (NumberFormatException exception) { return null; }
+    }
+
+    private Integer integer(String value) {
+        Matcher matcher = Pattern.compile("[0-9]+").matcher(clean(value));
+        if (!matcher.find()) return null;
+        try { return Integer.parseInt(matcher.group()); }
+        catch (NumberFormatException exception) { return null; }
+    }
+
+    private Double decimal(String value) {
+        try { return clean(value).isBlank() ? null : Double.parseDouble(clean(value)); }
+        catch (NumberFormatException exception) { return null; }
+    }
+
+    private String identity(String name, String address) {
+        return normalize(name) + '|' + normalize(address);
+    }
+
+    private String normalize(String value) {
+        return clean(value).toLowerCase(java.util.Locale.KOREAN).replaceAll("[^\\p{L}\\p{N}]", "");
     }
 
     private SyncTarget resolveTarget(AdminRole role, String adminRegionCode) {

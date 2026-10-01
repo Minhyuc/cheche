@@ -120,11 +120,38 @@ export async function adminApi<T>(
 - `GET /api/user/facilities/{id}`: 시설 상세
 - `GET /api/user/facilities/{id}/usage-guide`: 예약·이용 안내
 
+Figma 사용자 화면 연동을 위해 홈 응답에는 다음 필드가 추가됩니다.
+
+- `aiExamplePrompt`: AI 검색창 예시 문구
+- `quickSports`: 축구, 배드민턴, 수영, 농구 빠른 메뉴
+- `recommendations`: 사용자 지역 추천 시설
+- `kspoFacilities`: 국민체육진흥공단 공식 운영시설
+
+시설 카드에는 `usageFee`, `nextAvailableTime`, `favorite`, `tags`가 포함됩니다.
+정확한 위치 좌표가 확보되지 않은 시설의 `distanceKm`는 임의 값 대신 `null`입니다.
+홈·검색·상세·즐겨찾기 요청에 `latitude`, `longitude` 쿼리를 함께 보내면 저장된 시설 좌표를 기준으로
+`distanceKm`를 계산하며, 홈과 즐겨찾기는 가까운 순으로 정렬됩니다. 사진이 없으면
+`/images/facility-default.svg`가 반환됩니다.
+
 검색 요청:
 
 ```json
 { "query": "강남에서 수영할 수 있는 곳" }
 ```
+
+검색 응답의 `conditions`에는 Figma의 **AI 정리 키워드** 영역에 사용할 `region`, `sport`,
+`time`, `reservationAvailableOnly`가 포함됩니다. `assistantMessage`는 AI 대화 말풍선,
+`recommendedFacility`는 조건에 가장 잘 맞는 추천 시설 카드에 사용합니다.
+
+### 사용자 시설 즐겨찾기
+
+- `GET /api/user/facilities/favorites`: 내 관심 시설 목록
+- `POST /api/user/facilities/{id}/favorite`: 관심 시설 등록
+- `DELETE /api/user/facilities/{id}/favorite`: 관심 시설 해제
+
+시설 상세 응답에는 `favorite`, 평일·주말 운영시간, `usageFee`, 원문 요금 안내(`feeInfo`),
+`capacity`, `applicationMethod`, `closedDays`, `imageUrl`, `latitude`, `longitude`,
+`availableFacilities`, `amenities`, `reservationOptionsPath`가 포함됩니다.
 
 시설 검색 결과는 CheChe DB와 서울 열린데이터광장의 `ListPublicReservationSport` 결과를 합쳐 반환합니다.
 공공 API 항목은 `source`가 `SEOUL_OPEN_API`이며 `externalId`, `phone`, `imageUrl`,
@@ -164,6 +191,8 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 ### 사용자 시설 예약
 
 - `GET /api/user/reservations/availability?facilityId=1&date=2026-10-01`: 예약 가능한 정각 시간 조회
+- `GET /api/user/reservations/options?facilityId=1&date=2026-10-01`: Figma 예약 화면용 날짜·시간·요금 옵션
+- `GET /api/user/reservations/checkout?facilityId=1`: 내부 예약·제공기관 예약 주소와 결제 지원 상태
 - `POST /api/user/reservations`: 1시간 단위 예약 생성
 - `GET /api/user/reservations`: 내 예약 목록
 - `GET /api/user/reservations/{id}`: 내 예약 상세
@@ -181,8 +210,17 @@ KSPO 목록만 생략하고 CheChe DB와 서울시 검색은 계속 동작합니
 ```
 
 예약은 운영 중인 CheChe 등록 시설에서만 가능하며, 사용자가 설정한 지역의 시설이어야 합니다.
-06시부터 21시까지 정각 기준 1시간 단위로 예약할 수 있고, 동일 시설의 같은 시간에는 한 예약만 확정됩니다.
-공공 API에서 실시간 조회한 시설은 내부 시설 ID가 없으므로 현재 검색·안내만 지원합니다.
+공식 데이터에 운영시간·요금·수용인원이 있으면 해당 값을 사용하고, 없는 시설만 MVP 기본값을 사용합니다.
+정각 기준 1시간 단위로 예약할 수 있습니다. 시설 수용인원에서 같은 시간대의 확정 예약 인원을
+차감하며 잔여 인원을 초과한 예약은 거절합니다. 시설 행 잠금으로 동시 예약도 순차 처리합니다.
+
+`options` 응답은 오늘부터 5일의 날짜 선택지와 시설 운영시간 안의 예약 시간대를 반환합니다.
+시간 상태는 `AVAILABLE`, `RESERVED`, `CLOSED`입니다. 공식 요금이 없을 때만 1인 5,000원을 사용합니다.
+각 시간 항목에는 `capacity`, `reservedParticipants`, `remainingCapacity`가 포함됩니다.
+예약 생성 응답에는 `pricePerPerson`과 `totalFee`가 포함됩니다.
+
+`checkout`은 공공데이터에 제공기관 홈페이지가 있으면 `externalReservationUrl`을 반환합니다.
+실결제는 PG사 상점키가 설정되기 전까지 `onlinePaymentAvailable=false`입니다.
 
 ### 관리자 로그인
 
@@ -308,9 +346,12 @@ Content-Type: application/json
 
 시설 상태: `OPERATING`, `UNDER_INSPECTION`, `CLOSED`
 
-### 국민체육진흥공단 공공데이터 동기화
+### 국민체육진흥공단·공공시설 개방정보 동기화
 
-MVP 적용 범위는 서울특별시 25개 자치구입니다. 지역 관리자가 실행하면 관리자 DB의 담당 지역 코드를 기준으로 해당 자치구만 요청하고, 슈퍼관리자가 실행하면 서울특별시 전체를 요청합니다. 사용자 API에는 새로운 기능을 추가하지 않습니다.
+MVP 적용 범위는 서울특별시 25개 자치구입니다. 지역 관리자가 실행하면 관리자 DB의 담당 지역 코드를 기준으로 해당 자치구만 요청하고, 슈퍼관리자가 실행하면 서울특별시 전체를 요청합니다.
+공단 시설 목록과 공공데이터포털의 `전국공공시설개방정보표준데이터`를 결합해 시설을 생성·갱신합니다.
+표준데이터의 운영시간, 요금, 수용인원, 부대시설, 신청방법, 사진, 위도·경도는 `facilities` 테이블에 저장되며 사용자 시설 상세와 예약 옵션에 반영됩니다.
+공단 API 인증키가 없더라도 표준데이터 동기화는 계속 실행됩니다.
 
 ```http
 POST /api/facilities/public-data/sync

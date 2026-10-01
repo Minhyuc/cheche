@@ -42,6 +42,12 @@ public class Reservation {
     @Column(nullable = false)
     private int participantCount;
 
+    @Column(nullable = false, columnDefinition = "integer default 5000")
+    private int pricePerPerson;
+
+    @Column(nullable = false, columnDefinition = "integer default 0")
+    private int totalFee;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ReservationStatus status = ReservationStatus.CONFIRMED;
@@ -55,6 +61,11 @@ public class Reservation {
 
     public Reservation(Long userId, Facility facility, LocalDate reservationDate,
                        LocalTime startTime, LocalTime endTime, int participantCount) {
+        this(userId, facility, reservationDate, startTime, endTime, participantCount, 5000);
+    }
+
+    public Reservation(Long userId, Facility facility, LocalDate reservationDate,
+                       LocalTime startTime, LocalTime endTime, int participantCount, int pricePerPerson) {
         this.userId = userId;
         this.facilityId = facility.getId();
         this.facilityName = facility.getName();
@@ -64,6 +75,8 @@ public class Reservation {
         this.startTime = startTime;
         this.endTime = endTime;
         this.participantCount = participantCount;
+        this.pricePerPerson = pricePerPerson;
+        this.totalFee = pricePerPerson * participantCount;
     }
 
     @PrePersist
@@ -84,6 +97,8 @@ public class Reservation {
     public LocalTime getStartTime() { return startTime; }
     public LocalTime getEndTime() { return endTime; }
     public int getParticipantCount() { return participantCount; }
+    public int getPricePerPerson() { return pricePerPerson; }
+    public int getTotalFee() { return totalFee; }
     public ReservationStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getCancelledAt() { return cancelledAt; }

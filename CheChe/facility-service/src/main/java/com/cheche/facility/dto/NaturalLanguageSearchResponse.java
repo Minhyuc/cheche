@@ -7,6 +7,9 @@ public record NaturalLanguageSearchResponse(
         int totalCount,
         boolean empty,
         String message,
+        String assistantMessage,
+        AiSearchConditions conditions,
+        UserFacilityCard recommendedFacility,
         List<String> suggestions,
         List<UserFacilityCard> facilities
 ) {

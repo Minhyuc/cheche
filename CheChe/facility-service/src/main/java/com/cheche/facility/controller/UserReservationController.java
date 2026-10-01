@@ -49,4 +49,19 @@ public class UserReservationController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(service.availability(regionCode, facilityId, date));
     }
+
+    @GetMapping("/options")
+    public ResponseEntity<ReservationOptionsResponse> options(
+            @RequestHeader("X-User-Region") String regionCode,
+            @RequestParam Long facilityId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(service.options(regionCode, facilityId, date));
+    }
+
+    @GetMapping("/checkout")
+    public ResponseEntity<ReservationCheckoutResponse> checkout(
+            @RequestHeader("X-User-Region") String regionCode,
+            @RequestParam Long facilityId) {
+        return ResponseEntity.ok(service.checkout(regionCode, facilityId));
+    }
 }

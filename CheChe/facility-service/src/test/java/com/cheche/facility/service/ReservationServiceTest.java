@@ -40,18 +40,32 @@ class ReservationServiceTest {
                 new ReservationCreateRequest(10L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2));
 
         assertEquals(LocalTime.of(20, 0), response.endTime());
+        assertEquals(5000, response.pricePerPerson());
+        assertEquals(10000, response.totalFee());
         assertEquals(ReservationStatus.CONFIRMED, response.status());
         verify(reservationRepository).save(any(Reservation.class));
     }
 
     @Test
     void rejectsAlreadyReservedSlot() {
-        when(reservationRepository.existsByFacilityIdAndReservationDateAndStatusAndStartTimeLessThanAndEndTimeGreaterThan(
-                anyLong(), any(), eq(ReservationStatus.CONFIRMED), any(), any())).thenReturn(true);
+        when(reservationRepository.sumParticipantsForSlot(anyLong(), any(),
+                eq(ReservationStatus.CONFIRMED), any(), any())).thenReturn(20);
 
         assertThrows(ResponseStatusException.class, () -> service.create(20L, "11680",
                 new ReservationCreateRequest(10L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2)));
         verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void allowsReservationWithinRemainingCapacity() {
+        when(reservationRepository.sumParticipantsForSlot(anyLong(), any(),
+                eq(ReservationStatus.CONFIRMED), any(), any())).thenReturn(18);
+
+        var response = service.create(20L, "11680",
+                new ReservationCreateRequest(10L, LocalDate.of(2026, 10, 1), LocalTime.of(19, 0), 2));
+
+        assertEquals(2, response.participantCount());
+        verify(reservationRepository).save(any());
     }
 
     @Test
@@ -67,5 +81,20 @@ class ReservationServiceTest {
         when(reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
 
         assertThrows(ResponseStatusException.class, () -> service.cancel(20L, 1L));
+    }
+
+    @Test
+    void returnsFigmaReservationDateAndTimeOptions() {
+        when(facilityRepository.findById(10L)).thenReturn(Optional.of(facility));
+        when(reservationRepository.findAllByFacilityIdAndReservationDateAndStatusOrderByStartTimeAsc(
+                10L, LocalDate.of(2026, 10, 1), ReservationStatus.CONFIRMED)).thenReturn(java.util.List.of());
+
+        var response = service.options("11680", 10L, LocalDate.of(2026, 10, 1));
+
+        assertEquals(5, response.dates().size());
+        assertEquals(4, response.timeSlots().size());
+        assertEquals("AVAILABLE", response.timeSlots().get(0).status());
+        assertEquals(20, response.timeSlots().get(0).remainingCapacity());
+        assertEquals(5000, response.pricePerPerson());
     }
 }
