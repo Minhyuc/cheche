@@ -1,0 +1,16 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - SERVICE=${_SERVICE}
+      - --tag
+      - ${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _SERVICE: login-service
+  _IMAGE: asia-northeast3-docker.pkg.dev/$PROJECT_ID/cheche/login-service:latest

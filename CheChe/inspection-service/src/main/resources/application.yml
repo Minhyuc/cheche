@@ -1,5 +1,6 @@
 server:
-  port: 8084
+  # Cloud Run provides PORT at runtime; the default keeps local service execution unchanged.
+  port: ${PORT:8084}
   error:
     include-message: always
 
@@ -20,6 +21,12 @@ spring:
       max-request-size: 15MB
 
 management.endpoints.web.exposure.include: health,info
+
+cheche:
+  storage:
+    # local: local IntelliJ/Docker development, gcs: Cloud Run persistent photo storage
+    type: ${CHECHE_STORAGE_TYPE:local}
+    bucket: ${CHECHE_GCS_BUCKET:}
 
 services:
   facility:

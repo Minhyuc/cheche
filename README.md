@@ -20,6 +20,7 @@ Next-Me와 마찬가지로 Spring Boot/Gradle 기반이며 Gateway와 서비스�
 
 - [프론트엔드 연동 가이드](docs/FRONTEND_API.md)
 - [OpenAPI 3.0 명세](docs/openapi.yaml)
+- [Cloud Run + TiDB MVP 배포 가이드](docs/CLOUD_RUN_TIDB_DEPLOYMENT.md)
 
 ## 로그인과 JWT
 

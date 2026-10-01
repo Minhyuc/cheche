@@ -5,12 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 @Component
+@ConditionalOnProperty(name = "cheche.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalPhotoStorage implements PhotoStorage {
     private final Path uploadRoot;
 

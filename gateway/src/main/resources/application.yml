@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  # Cloud Run provides PORT at runtime; the default keeps local Gateway execution unchanged.
+  port: ${PORT:8080}
 
 spring:
   application:
